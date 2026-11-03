@@ -50,6 +50,7 @@ mark{background:#ffe58f;color:inherit;padding:0}
 .ficha .nom{font-size:19px;font-weight:800;margin:3px 0 8px}
 .tag{display:inline-block;font-size:12.5px;font-weight:700;padding:3px 9px;border-radius:999px;margin:0 6px 4px 0}
 .tg{background:var(--grnbg);color:var(--grn)}.tr{background:var(--redbg);color:var(--red)}
+.act{font-size:13.5px;margin-top:6px;padding:8px 10px;background:#f4f6f9;border-radius:9px}.act span{display:block;font-size:11.5px;color:var(--mut);text-transform:uppercase;letter-spacing:.04em;font-weight:700}
 .sm{font-size:12.5px;color:var(--mut);margin-top:6px}
 .n{background:#fff;border-color:var(--line);color:var(--mut)}
 .ev h3{font-size:16px;margin:0 0 4px}.ev .intro{font-size:13px;color:var(--mut);margin:0 0 8px}
@@ -88,12 +89,12 @@ mark{background:#ffe58f;color:inherit;padding:0}
 <div id="out"></div>
 <div class="box ev" style="margin-top:16px" id="ev">
 <h3>🧾 ¿Podemos comprarle a este proveedor?</h3>
-<p class="intro">Busca el RUC en Consulta RUC de SUNAT, revisa estos 5 puntos y marca lo que encuentres. La página te dirá si se puede comprar.</p>
+<p class="intro">Busca el RUC en Consulta RUC de SUNAT, revisa estos 4 puntos y marca lo que encuentres. La página te dirá si se puede comprar.</p>
 <a class="lnk" href="https://e-consultaruc.sunat.gob.pe/cl-ti-itmrconsruc/FrameCriterioBusquedaWeb.jsp" target="_blank" rel="noopener" style="margin:0 0 6px">🔎 Abrir Consulta RUC de SUNAT</a>
 <div id="qs"></div>
 <div id="ver"></div>
 <div class="cons"><b>📄 Constancia de consulta</b>
-<div class="intro" id="consMsg">Primero consulta un RUC válido arriba y completa los 5 puntos.</div>
+<div class="intro" id="consMsg">Primero consulta un RUC válido arriba y completa los 4 puntos.</div>
 <input id="usr" autocomplete="name" placeholder="Tu nombre y apellido (quién consulta)">
 <button class="btnpdf" type="button" id="pdf" disabled>Descargar constancia (PDF)</button></div>
 <button class="reset" type="button" id="rst">↺ Limpiar evaluación</button>
@@ -125,7 +126,7 @@ q.value="";out.innerHTML="";
 if(m==="ruc"){q.inputMode="numeric";q.maxLength=11;q.placeholder="Ingresa el RUC (11 dígitos)";hint.textContent="Escribe el RUC del proveedor tal como figura en la cotización o factura.";}
 else{q.inputMode="text";q.removeAttribute("maxlength");q.placeholder="Ej.: INVERSIONES PEREZ";hint.textContent="Escribe al menos 3 letras. Busca por todas las palabras, sin importar tildes ni el orden.";}
 q.focus();}
-q.addEventListener("input",()=>{if(mode==="ruc"){const v=q.value.replace(/\D/g,"").slice(0,11);if(q.value!==v)q.value=v;if(v.length===11)search();else{out.innerHTML="";LR=null;updCons();}}});
+q.addEventListener("input",()=>{if(mode==="ruc"){const v=q.value.replace(/\D/g,"").slice(0,11);if(q.value!==v)q.value=v;if(v.length===11)search();else{out.innerHTML="";LR=null;evaluar();}}});
 document.getElementById("tRuc").onclick=()=>setMode("ruc");
 document.getElementById("tNom").onclick=()=>setMode("nom");
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -146,10 +147,12 @@ else txt=new TextDecoder().decode(b);}
 PC.set(k,txt);}catch(e){return undefined;}}
 const s=ruc.slice(6)+"|";const i=txt.startsWith(s)?0:(txt.indexOf("\n"+s)+1||-1);
 if(i<0)return null;const ln=txt.slice(i,txt.indexOf("\n",i)>-1?txt.indexOf("\n",i):undefined).split("|");
-return {nom:ln[1],est:ln[2],cond:ln[3]};}
+return {nom:ln[1],est:ln[2],cond:ln[3],act:ln[4]};}
+let ACTS=null;async function actDesc(i){if(i===undefined||i===""||i===null)return "";try{if(!ACTS)ACTS=await fetch("act.json").then(r=>r.json());}catch(e){return "";}return ACTS[+i]||"";}
 function ficha(f){const eo=f.est==="ACTIVO",co=f.cond==="HABIDO";
 return `<div class="ficha"><div class="lbl">Razón social según SUNAT</div><div class="nom">${esc(f.nom)}</div>
 <span class="tag ${eo?"tg":"tr"}">${eo?"✔":"✖"} ${esc(f.est||"-")}</span><span class="tag ${co?"tg":"tr"}">${co?"✔":"✖"} ${esc(f.cond||"-")}</span>
+${f.actd?`<div class="act"><span>Actividad económica</span>${esc(f.actd).split(" · ").join("<br>")}</div>`:""}
 <div class="sm">¿Es el proveedor correcto? Si el nombre no coincide, <b>revisa el RUC digitado</b>.</div></div>
 ${eo&&co?"":`<div class="alert r"><h2>⛔ No proceder con la compra</h2><p>El contribuyente figura con estado <b>${esc(f.est)}</b> y condición <b>${esc(f.cond)}</b>. Solo se compra a proveedores <b>ACTIVOS</b> y <b>HABIDOS</b>. Comunicar a Contabilidad.</p></div>`}`;}
 function noReg(ruc){return `<div class="alert e"><h2>❌ RUC NO REGISTRADO</h2><p>El Sistema RUC <b>NO REGISTRA</b> el número de RUC <b>${ruc}</b> consultado (padrón reducido SUNAT al ${PFECHA}).</p><p style="margin-top:6px">Probablemente se digitó mal. Revisa el RUC en la cotización o factura.</p>${lnk}</div>`;}
@@ -171,14 +174,14 @@ function search(){
 const v=q.value.trim();
 if(mode==="ruc"){
 const ruc=v.replace(/\D/g,"");
-const err=rucValido(ruc);LR=null;updCons();if(err){out.innerHTML=bad(err);return;}
+const err=rucValido(ruc);LR=null;evaluar();if(err){out.innerHTML=bad(err);return;}
 const hits=D.filter(r=>r[0]===ruc);const sres=hits.length?red(hits.length)+hits.map(card).join(""):null;
-if(!PFECHA){LR={ruc,nom:"(no disponible)",est:"-",cond:"-",ssco:!!sres};updCons();out.innerHTML=sres||ok("El RUC "+ruc);return;}
+if(!PFECHA){LR={ruc,nom:"(no disponible)",est:"-",cond:"-",act:"",ssco:!!sres};evaluar();out.innerHTML=sres||ok("El RUC "+ruc);return;}
 const my=++SEQ;out.innerHTML=`<div class="alert n"><p>🔎 Buscando razón social en el padrón SUNAT…</p></div>`;
-padron(ruc).then(f=>{if(my!==SEQ)return;
+padron(ruc).then(async f=>{if(f)f.actd=await actDesc(f.act);if(my!==SEQ)return;
 if(f===null){out.innerHTML=noReg(ruc)+(sres||"");return;}
 if(f===undefined){out.innerHTML=warn("No se pudo obtener la razón social (revisa tu conexión a internet).")+(sres||ok("El RUC "+ruc));return;}
-LR={ruc,nom:f.nom,est:f.est,cond:f.cond,ssco:!!sres};updCons();out.innerHTML=ficha(f)+(sres||ok("El RUC "+ruc,true));});
+LR={ruc,nom:f.nom,est:f.est,cond:f.cond,act:f.actd||"",ssco:!!sres};evaluar();out.innerHTML=ficha(f)+(sres||ok("El RUC "+ruc,true));});
 }else{
 const t=norm(v);
 if(!/[A-ZÑ]/.test(t)||t.replace(/[^A-ZÑ]/g,"").length<3){out.innerHTML=badNom("Escribe al menos 3 letras. Una razón social no puede ser solo números o símbolos.");return;}
@@ -189,20 +192,20 @@ const show=hits.slice(0,50);
 out.innerHTML=red(hits.length)+(hits.length>50?warn("Se muestran 50 de "+hits.length+" resultados. Escribe más palabras o busca por RUC."):"")+show.map(card).join("");
 }}
 const QS=[
-{k:"act",t:"1. Actividad(es) económica(s)",w:"Debe corresponder a lo que vamos a comprar. Si no coincide, SUNAT puede cuestionar que la operación sea real y desconocer el crédito fiscal y el gasto.",o:[["v","Coincide con el bien o servicio que vamos a comprar"],["r","No tiene relación con lo que vamos a comprar"]]},
-{k:"his",t:"2. Información histórica",w:"Cambios frecuentes de razón social o domicilio, o un RUC recién creado o reactivado, son señales de alerta frecuentes en proveedores fantasma.",o:[["v","Sin cambios recientes / RUC con varios años de antigüedad"],["a","Cambios recientes de razón social o domicilio, o RUC con menos de 1 año"],["a","Fue dado de baja o suspendido y luego reactivado"]]},
-{k:"tra",t:"3. Cantidad de trabajadores y/o prestadores de servicio",w:"Debe ser coherente con lo que el proveedor dice que hace. No tener personal para el servicio o volumen ofrecido es justamente el criterio de un SSCO.",o:[["v","Tiene trabajadores acordes al servicio o volumen ofrecido"],["a","Tiene pocos trabajadores para el volumen o servicio ofrecido"],["r","No registra trabajadores (0) y el servicio requiere personal"]]},
-{k:"deu",t:"4. Deuda coactiva",w:"Si tiene deuda en cobranza coactiva, SUNAT puede ordenarnos retener los pagos al proveedor (embargo en forma de retención). Contabilidad debe verificarlo antes de cada pago.",o:[["v","No registra deuda coactiva"],["a","Registra deuda en cobranza coactiva"]]},
-{k:"omi",t:"5. Omisiones tributarias",w:"Si no presenta sus declaraciones, es probable que no declare nuestras compras: alto riesgo de que se desconozca el crédito fiscal.",o:[["v","No registra omisiones"],["a","Registra omisiones antiguas (más de 12 meses)"],["r","Registra omisiones recientes (últimos 12 meses)"]]}];
+{k:"his",t:"1. Información histórica",w:"Cambios frecuentes de razón social o domicilio, o un RUC recién creado o reactivado, son señales de alerta frecuentes en proveedores fantasma.",o:[["v","Sin cambios recientes / RUC con varios años de antigüedad"],["a","Cambios recientes de razón social o domicilio, o RUC con menos de 1 año"],["a","Fue dado de baja o suspendido y luego reactivado"]]},
+{k:"tra",t:"2. Cantidad de trabajadores y/o prestadores de servicio",w:"Debe ser coherente con lo que el proveedor dice que hace. No tener personal para el servicio o volumen ofrecido es justamente el criterio de un SSCO.",o:[["v","Tiene trabajadores acordes al servicio o volumen ofrecido"],["a","Tiene pocos trabajadores para el volumen o servicio ofrecido"],["r","No registra trabajadores (0) y el servicio requiere personal"]]},
+{k:"deu",t:"3. Deuda coactiva",w:"Si tiene deuda en cobranza coactiva, SUNAT puede ordenarnos retener los pagos al proveedor (embargo en forma de retención). Contabilidad debe verificarlo antes de cada pago.",o:[["v","No registra deuda coactiva"],["a","Registra deuda en cobranza coactiva"]]},
+{k:"omi",t:"4. Omisiones tributarias",w:"Si no presenta sus declaraciones, es probable que no declare nuestras compras: alto riesgo de que se desconozca el crédito fiscal.",o:[["v","No registra omisiones"],["a","Registra omisiones antiguas (más de 12 meses)"],["r","Registra omisiones recientes (últimos 12 meses)"]]}];
 let LR=null;
 const qsEl=document.getElementById("qs"),verEl=document.getElementById("ver");
 qsEl.innerHTML=QS.map(x=>`<div class="q"><div class="t">${x.t}</div><div class="w">${x.w}</div>${x.o.map((o,i)=>`<label class="op"><input type="radio" name="${x.k}" value="${o[0]}">${o[1]}</label>`).join("")}</div>`).join("");
 let VER=null;
 function evaluar(){const v=QS.map(x=>(document.querySelector(`input[name=${x.k}]:checked`)||{}).value);const n=v.filter(Boolean).length;
 VER=null;if(!n){verEl.innerHTML="";updCons();return;}
-const r=v.includes("r"),a=v.includes("a");let h;
+const bl=LR&&(LR.ssco||(LR.est!=="ACTIVO"&&LR.est!=="-")||(LR.cond!=="HABIDO"&&LR.cond!=="-"));
+const r=v.includes("r")||bl,a=v.includes("a");let h;
 if(n===QS.length)VER=r?"NO COMPRAR":a?"CONSULTAR CON CONTABILIDAD":"SE PUEDE COMPRAR";
-if(r)h=`<div class="ver r"><b class="big">⛔ NO COMPRAR</b>El proveedor presenta señales de alto riesgo. No emitir la orden de compra sin la aprobación de Contabilidad.</div>`;
+if(r)h=`<div class="ver r"><b class="big">⛔ NO COMPRAR</b>${bl?"El proveedor figura como SSCO o no está ACTIVO y HABIDO. ":""}El proveedor presenta señales de alto riesgo. No emitir la orden de compra sin la aprobación de Contabilidad.</div>`;
 else if(a)h=`<div class="ver a"><b class="big">⚠️ CONSULTAR CON CONTABILIDAD</b>Hay observaciones. Antes de comprar, envía a Contabilidad el RUC y lo que encontraste para que evalúe y pida sustento adicional al proveedor.</div>`;
 else if(n<QS.length)h=`<div class="ver n"><b class="big">Faltan ${QS.length-n} punto(s) por revisar</b>Completa la evaluación para obtener el resultado.</div>`;
 else h=`<div class="ver g"><b class="big">✅ SE PUEDE COMPRAR</b>No se encontraron observaciones. Confirma también que no figure como SSCO y que esté ACTIVO y HABIDO, y guarda el sustento de la operación.</div>`;
@@ -213,7 +216,7 @@ const usr=document.getElementById("usr"),pdfB=document.getElementById("pdf"),cMs
 try{usr.value=localStorage.getItem("ssco_usr")||"";}catch(e){}
 function updCons(){const okR=!!LR,okE=!!VER,okU=usr.value.trim().length>=3;
 pdfB.disabled=!(okR&&okE&&okU);
-cMsg.textContent=!okR?"Primero consulta un RUC válido arriba.":!okE?"Completa los 5 puntos de la evaluación.":!okU?"Escribe tu nombre para generar la constancia.":"Lista para descargar: RUC "+LR.ruc+" · "+VER+".";}
+cMsg.textContent=!okR?"Primero consulta un RUC válido arriba.":!okE?"Completa los "+QS.length+" puntos de la evaluación.":!okU?"Escribe tu nombre para generar la constancia.":"Lista para descargar: RUC "+LR.ruc+" · "+VER+".";}
 usr.addEventListener("input",()=>{try{localStorage.setItem("ssco_usr",usr.value.trim());}catch(e){}updCons();});
 function wrapT(c,txt,w){const ws=String(txt).split(" ");const L=[];let l="";for(const x of ws){const tt=l?l+" "+x:x;if(c.measureText(tt).width>w&&l){L.push(l);l=x;}else l=tt;}if(l)L.push(l);return L;}
 function makePDF(jpg){const b64=jpg.split(",")[1],bin=atob(b64),img=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)img[i]=bin.charCodeAt(i);
@@ -243,6 +246,7 @@ const sec=s=>{y+=12;c.fillStyle="#0b4f8a";c.font=`bold 31px ${F}`;c.fillText(s,M
 row("Fecha y hora:",fh+" (hora Lima)");row("Consultado por:",usr.value.trim(),true);row("Código de verificación:",code,true);
 sec("1. Datos del proveedor");row("RUC:",LR.ruc,true);row("Razón social:",LR.nom,true);
 const okE=LR.est==="ACTIVO"||LR.est==="-",okC=LR.cond==="HABIDO"||LR.cond==="-";
+if(LR.act)row("Actividad económica:",LR.act);
 row("Estado:",LR.est,true,okE?"#067647":"#b42318");row("Condición:",LR.cond,true,okC?"#067647":"#b42318");
 sec("2. Relación de SSCO (SUNAT)");row("Resultado:",LR.ssco?"FIGURA en la relación de Sujetos sin Capacidad Operativa":"No figura en la relación de SSCO",true,LR.ssco?"#b42318":"#067647");row("Lista vigente al:",LAST);
 sec("3. Evaluación en Consulta RUC");ans.forEach(a=>{c.fillStyle=a[2]==="v"?"#067647":a[2]==="a"?"#b54708":"#b42318";c.beginPath();c.arc(M+12,y-10,11,0,7);c.fill();
