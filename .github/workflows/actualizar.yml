@@ -1,0 +1,48 @@
+name: Actualizar lista SSCO
+
+on:
+  schedule:
+    # 8:00 a.m. hora de Lima, días 1 al 5 de cada mes (por si SUNAT publica con retraso)
+    - cron: "0 13 1-5 * *"
+  workflow_dispatch:   # botón "Run workflow" para actualizar a mano
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install openpyxl && mkdir -p data
+      - run: python build.py
+      - name: Guardar el Excel nuevo en el repositorio
+        run: |
+          git config user.name "actualizador-ssco"
+          git config user.email "actions@users.noreply.github.com"
+          git add data/ssco.xlsx
+          git diff --cached --quiet || git commit -m "Lista SSCO actualizada $(date +%Y-%m-%d)"
+          git push || true
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
