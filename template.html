@@ -89,9 +89,9 @@ mark{background:#ffe58f;color:inherit;padding:0}
 <div id="out"></div>
 <div class="box ev" style="margin-top:16px" id="ev">
 <h3>🧾 ¿Podemos comprarle a este proveedor?</h3>
-<p class="intro">Busca el RUC en Consulta RUC de SUNAT, revisa estos 4 puntos y marca lo que encuentres. La página te dirá si se puede comprar.</p>
+<div id="evq"><p class="intro">Busca el RUC en Consulta RUC de SUNAT, revisa estos 4 puntos y marca lo que encuentres. La página te dirá si se puede comprar.</p>
 <a class="lnk" href="https://e-consultaruc.sunat.gob.pe/cl-ti-itmrconsruc/FrameCriterioBusquedaWeb.jsp" target="_blank" rel="noopener" style="margin:0 0 6px">🔎 Abrir Consulta RUC de SUNAT</a>
-<div id="qs"></div>
+<div id="qs"></div></div>
 <div id="ver"></div>
 <div class="cons"><b>📄 Constancia de consulta</b>
 <div class="intro" id="consMsg">Primero consulta un RUC válido arriba y completa los 4 puntos.</div>
@@ -200,7 +200,13 @@ let LR=null;
 const qsEl=document.getElementById("qs"),verEl=document.getElementById("ver");
 qsEl.innerHTML=QS.map(x=>`<div class="q"><div class="t">${x.t}</div><div class="w">${x.w}</div>${x.o.map((o,i)=>`<label class="op"><input type="radio" name="${x.k}" value="${o[0]}">${o[1]}</label>`).join("")}</div>`).join("");
 let VER=null;
-function evaluar(){const v=QS.map(x=>(document.querySelector(`input[name=${x.k}]:checked`)||{}).value);const n=v.filter(Boolean).length;
+function motivos(){if(!LR)return [];const m=[];if(LR.ssco)m.push("figura en la relación de SSCO");
+if(LR.est!=="ACTIVO"&&LR.est!=="-")m.push("está en estado "+LR.est);if(LR.cond!=="HABIDO"&&LR.cond!=="-")m.push("tiene condición "+LR.cond);return m;}
+const evq=document.getElementById("evq"),rstB=document.getElementById("rst");
+function evaluar(){const mt=motivos();
+if(mt.length){evq.style.display="none";rstB.style.display="none";VER="NO COMPRAR";
+verEl.innerHTML=`<div class="ver r"><b class="big">⛔ NO COMPRAR</b>El proveedor ${mt.join(", ")}. No se requiere evaluación: no emitir la orden de compra y comunicar a Contabilidad.</div>`;updCons();return;}
+evq.style.display="";rstB.style.display="";const v=QS.map(x=>(document.querySelector(`input[name=${x.k}]:checked`)||{}).value);const n=v.filter(Boolean).length;
 VER=null;if(!n){verEl.innerHTML="";updCons();return;}
 const bl=LR&&(LR.ssco||(LR.est!=="ACTIVO"&&LR.est!=="-")||(LR.cond!=="HABIDO"&&LR.cond!=="-"));
 const r=v.includes("r")||bl,a=v.includes("a");let h;
@@ -233,7 +239,7 @@ return new Blob(parts,{type:"application/pdf"});}
 const CW=1240,CH=1754;
 pdfB.onclick=async()=>{if(pdfB.disabled)return;pdfB.disabled=true;const old=pdfB.textContent;pdfB.textContent="Generando…";
 try{const now=new Date(),fh=now.toLocaleString("es-PE",{timeZone:"America/Lima",day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:false});
-const ans=QS.map(x=>{const i=[...document.querySelectorAll(`input[name=${x.k}]`)].findIndex(e=>e.checked);return [x.t.replace(/^\d+\. /,""),x.o[i][1],x.o[i][0]];});
+const MT=motivos();const ans=MT.length?[]:QS.map(x=>{const i=[...document.querySelectorAll(`input[name=${x.k}]`)].findIndex(e=>e.checked);return [x.t.replace(/^\d+\. /,""),x.o[i][1],x.o[i][0]];});
 const body=[LR.ruc,LR.nom,LR.est,LR.cond,LR.ssco,ans.map(a=>a[1]).join("|"),VER,usr.value.trim(),now.toISOString()].join("#");
 const code=[...new Uint8Array(await crypto.subtle.digest("SHA-256",new TextEncoder().encode(body)))].slice(0,5).map(b=>b.toString(16).padStart(2,"0")).join("").toUpperCase();
 const cv=document.createElement("canvas");cv.width=CW;cv.height=CH;const c=cv.getContext("2d");const F="Helvetica, Arial, sans-serif",M=100;let y=0;
@@ -249,7 +255,7 @@ const okE=LR.est==="ACTIVO"||LR.est==="-",okC=LR.cond==="HABIDO"||LR.cond==="-";
 if(LR.act)LR.act.split(" · ").forEach((x,i)=>row(i?"Act. secundaria:":"Act. principal:",x));
 row("Estado:",LR.est,true,okE?"#067647":"#b42318");row("Condición:",LR.cond,true,okC?"#067647":"#b42318");
 sec("2. Relación de SSCO (SUNAT)");row("Resultado:",LR.ssco?"FIGURA en la relación de Sujetos sin Capacidad Operativa":"No figura en la relación de SSCO",true,LR.ssco?"#b42318":"#067647");row("Lista vigente al:",LAST);
-sec("3. Evaluación en Consulta RUC");ans.forEach(a=>{c.fillStyle=a[2]==="v"?"#067647":a[2]==="a"?"#b54708":"#b42318";c.beginPath();c.arc(M+12,y-10,11,0,7);c.fill();
+sec("3. Evaluación en Consulta RUC");if(MT.length)row("No aplica:","Evaluación no requerida porque el proveedor "+MT.join(", ")+".",true,"#b42318");ans.forEach(a=>{c.fillStyle=a[2]==="v"?"#067647":a[2]==="a"?"#b54708":"#b42318";c.beginPath();c.arc(M+12,y-10,11,0,7);c.fill();
 c.fillStyle=ink;c.font=`bold 26px ${F}`;const K=wrapT(c,a[0],330);K.forEach((l,i)=>c.fillText(l,M+36,y+i*34));c.font=`26px ${F}`;const L=wrapT(c,a[1],CW-M-420);L.forEach((l,i)=>c.fillText(l,M+380,y+i*34));y+=34*Math.max(K.length,L.length)+12;});
 sec("4. Resultado");
 if(LR.ssco||!okE||!okC){c.fillStyle="#b42318";c.font=`bold 26px ${F}`;wrapT(c,"Observación: el proveedor figura como SSCO o no está ACTIVO y HABIDO. No proceder sin aprobación de Contabilidad.",CW-2*M).forEach(l=>{c.fillText(l,M,y);y+=34;});y+=6;}
