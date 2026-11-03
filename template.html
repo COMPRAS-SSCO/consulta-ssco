@@ -39,6 +39,8 @@ input:focus{border-color:var(--pri)}
 .steps li{margin-bottom:4px}
 footer{font-size:12px;color:var(--mut);text-align:center;margin-top:18px}
 mark{background:#ffe58f;color:inherit;padding:0}
+.e{background:var(--redbg);border-color:#fda29b;color:var(--red)}
+.lnk{display:block;text-align:center;margin-top:10px;padding:11px;border-radius:10px;background:#fff;border:1.5px solid var(--pri);color:var(--pri);font-weight:600;font-size:14.5px;text-decoration:none}
 </style>
 </head>
 <body>
@@ -92,13 +94,23 @@ function card(r){return `<div class="item"><div class="ruc">RUC ${esc(r[0])}</di
 <dt>Resolución</dt><dd>${esc(r[3])}</dd><dt>Emisión</dt><dd>${esc(r[4])}</dd><dt>Quedó firme</dt><dd>${esc(r[5])}</dd>
 <dt>Publicado</dt><dd>${esc(r[8])}</dd><dt>Domicilio</dt><dd>${esc(r[2])}</dd><dt>Rep. legal</dt><dd>${esc(r[7])}${r[6]&&r[6]!==r[0]?" ("+esc(r[6])+")":""}</dd></dl></div>`;}
 function red(n){return `<div class="alert r"><h2>⛔ ALERTA: proveedor SSCO</h2><p>${n>1?n+" coincidencias figuran":"Figura"} en la relación de Sujetos sin Capacidad Operativa de SUNAT. <b>No proceder con la compra</b> y comunicar a Contabilidad.</p></div>`;}
-function ok(t){return `<div class="alert g"><h2>✅ No figura como SSCO</h2><p>${t} no aparece en la relación publicada hasta el ${LAST}. Igual verifica en Consulta RUC de SUNAT que esté <b>ACTIVO</b> y <b>HABIDO</b>.</p></div>`;}
+function ok(t){return `<div class="alert g"><h2>✅ No figura como SSCO</h2><p>${t} no aparece en la relación publicada hasta el ${LAST}. Igual verifica en Consulta RUC de SUNAT que esté <b>ACTIVO</b> y <b>HABIDO</b>.</p>${lnk}</div>`;}
+const SUNAT_URL="https://e-consultaruc.sunat.gob.pe/cl-ti-itmrconsruc/FrameCriterioBusquedaWeb.jsp";
+const lnk=`<a class="lnk" href="${SUNAT_URL}" target="_blank" rel="noopener">🔎 Verificar en Consulta RUC de SUNAT</a>`;
+function rucValido(r){
+if(!/^\d{11}$/.test(r))return "El RUC debe tener 11 dígitos (ingresaste "+r.length+").";
+if(!["10","15","16","17","20"].includes(r.slice(0,2)))return "Un RUC debe empezar con 10, 15, 16, 17 o 20. Este empieza con "+r.slice(0,2)+".";
+const w=[5,4,3,2,7,6,5,4,3,2];let s=0;for(let i=0;i<10;i++)s+=(+r[i])*w[i];
+let d=11-s%11;if(d===10)d=0;if(d===11)d=1;
+if(d!==+r[10])return "El último dígito (dígito verificador) no corresponde. Probablemente hay un número mal digitado o dos números cambiados de lugar.";
+return "";}
+function bad(msg){return `<div class="alert e"><h2>❌ RUC NO VÁLIDO</h2><p>${msg}</p><p style="margin-top:6px">Revisa el RUC en la cotización o factura, o búscalo por razón social en Consulta RUC de SUNAT.</p>${lnk}</div>`;}
 function warn(t){return `<div class="alert a"><h2>Revisa el dato</h2><p>${t}</p></div>`;}
 function search(){
 const v=q.value.trim();
 if(mode==="ruc"){
 const ruc=v.replace(/\D/g,"");
-if(ruc.length!==11){out.innerHTML=warn("El RUC debe tener 11 dígitos (ingresaste "+ruc.length+").");return;}
+const err=rucValido(ruc);if(err){out.innerHTML=bad(err);return;}
 const hits=D.filter(r=>r[0]===ruc);
 out.innerHTML=hits.length?red(hits.length)+hits.map(card).join(""):ok("El RUC "+ruc);
 }else{
