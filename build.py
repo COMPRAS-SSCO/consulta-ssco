@@ -4,7 +4,7 @@
    p/XXXXXX.gz (por los 6 primeros dígitos del RUC) para buscar la razón social.
    Si no existe, reutiliza los fragmentos guardados en padron/ (caché).
 3) Escribe site/ con index.html, app instalable (manifest, sw.js, íconos)."""
-import json, datetime, urllib.request, pathlib, sys, zipfile, io, gzip, shutil, collections
+import json, datetime, urllib.request, pathlib, sys, zipfile, io, gzip, shutil, collections, csv
 import openpyxl
 
 URL = "https://www.sunat.gob.pe/padronesnotificaciones/ssco/sujesincapacidadOperativa.xlsx"
@@ -48,7 +48,45 @@ def key(s):
 last = max((r[8] for r in rows), key=key)
 print(f"SSCO: {len(rows)} registros, última publicación {last}")
 
-# ---------- 2. Padrón reducido ----------
+# ---------- 2a. Actividad económica (Padrón RUC - datos abiertos SUNAT) ----------
+ACT = {}; ACTS = []; actidx = {}
+dz = pathlib.Path("padronruc/PadronRUC.zip")
+if dz.exists() and dz.stat().st_size > 1_000_000:
+    try:
+        csv.field_size_limit(10**7)
+        with zipfile.ZipFile(dz) as z:
+            nm = max(z.namelist(), key=lambda x: z.getinfo(x).file_size)
+            with z.open(nm) as f:
+                tf = io.TextIOWrapper(f, encoding="latin-1", errors="replace", newline="")
+                head = tf.readline()
+                dl = "|" if head.count("|") > head.count(",") else (";" if head.count(";") > head.count(",") else ",")
+                H = [h.strip().strip('"').upper() for h in head.rstrip("\r\n").split(dl)]
+                print("Padrón RUC (datos abiertos) columnas:", H)
+                ri = next(i for i, h in enumerate(H) if h == "RUC" or ("RUC" in h and "TIPO" not in h))
+                ac = [i for i, h in enumerate(H) if "CIIU" in h or "ACTIVIDAD" in h]
+                print("  columna RUC:", H[ri], "| columnas actividad:", [H[i] for i in ac])
+                rd = csv.reader(tf, delimiter=dl)
+                for k, r in enumerate(rd):
+                    if k < 2: print("  ejemplo:", r)
+                    if len(r) <= ri: continue
+                    ruc = r[ri].strip()
+                    if len(ruc) != 11: continue
+                    vals = []
+                    for i in ac:
+                        v = r[i].strip() if i < len(r) else ""
+                        if v and v not in ("-", "0", "NULL") and v not in vals: vals.append(v)
+                    if not vals: continue
+                    s = " · ".join(vals)
+                    j = actidx.get(s)
+                    if j is None: j = actidx[s] = len(ACTS); ACTS.append(s)
+                    ACT[ruc] = j
+        print(f"Actividad económica: {len(ACT)} RUC, {len(ACTS)} descripciones distintas")
+    except Exception as e:
+        print("AVISO: no se pudo leer el Padrón RUC de datos abiertos:", repr(e)); ACT = {}; ACTS = []
+else:
+    print("AVISO: no hay Padrón RUC de datos abiertos (actividad económica)")
+
+# ---------- 2b. Padrón reducido ----------
 zp = pathlib.Path("padron.zip")
 if zp.exists() and zp.stat().st_size > 10_000_000:
     try:
@@ -60,13 +98,15 @@ if zp.exists() and zp.stat().st_size > 10_000_000:
                     p = raw.rstrip("\r\n").split("|")
                     if len(p) < 4 or len(p[0]) != 11 or not p[0].isdigit(): continue
                     nom = p[1].strip().replace("\n", " ")
-                    shards[p[0][:6]].append(f"{p[0][6:]}|{nom}|{p[2].strip()}|{p[3].strip()}")
+                    a = ACT.get(p[0], "")
+                    shards[p[0][:6]].append(f"{p[0][6:]}|{nom}|{p[2].strip()}|{p[3].strip()}|{a}")
                     n += 1
         if n < 1_000_000: raise ValueError(f"solo {n} registros")
         nuevo = pathlib.Path("padron_nuevo"); shutil.rmtree(nuevo, ignore_errors=True); (nuevo / "p").mkdir(parents=True)
         for k, v in shards.items():
             (nuevo / "p" / f"{k}.gz").write_bytes(gzip.compress(("\n".join(v) + "\n").encode("utf-8"), 9))
         (nuevo / "fecha.txt").write_text(hoy)
+        (nuevo / "act.json").write_text(json.dumps(ACTS, ensure_ascii=False), encoding="utf-8")
         shutil.rmtree(PAD, ignore_errors=True); nuevo.rename(PAD)
         print(f"Padrón: {n} RUC en {len(shards)} fragmentos")
     except Exception as e:
@@ -76,6 +116,7 @@ else:
 pfecha = (PAD / "fecha.txt").read_text().strip() if (PAD / "fecha.txt").exists() else ""
 if pfecha:
     shutil.rmtree(SITE / "p", ignore_errors=True); shutil.copytree(PAD / "p", SITE / "p")
+    shutil.copy(PAD / "act.json", SITE / "act.json") if (PAD / "act.json").exists() else (SITE / "act.json").write_text("[]")
 print("Padrón disponible:", pfecha or "NO")
 
 # ---------- 3. Página + app instalable ----------
