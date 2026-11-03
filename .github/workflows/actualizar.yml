@@ -60,7 +60,40 @@ jobs:
             -o padron.zip http://www2.sunat.gob.pe/padron_reducido_ruc.zip \
             || { echo "AVISO: no se pudo descargar el padrón"; rm -f padron.zip; }
           ls -la padron.zip || true
+      - name: Recuperar Padrón RUC (actividad económica) guardado
+        uses: actions/cache/restore@v4
+        with:
+          path: padronruc
+          key: padronruc-${{ github.run_id }}
+          restore-keys: padronruc-
+      - name: Descargar Padrón RUC de datos abiertos (actividad económica, mensual)
+        id: da
+        run: |
+          mkdir -p padronruc
+          HAVE=$(cat padronruc/mes.txt 2>/dev/null || echo ninguno)
+          for i in 0 1 2 3 4; do
+            M=$(date -d "$(date +%Y-%m-15) -$i month" +%Y%m)
+            URL="https://www.datosabiertos.gob.pe/sites/default/files/PadronRUC_$M.zip"
+            if curl -sfL -A "Mozilla/5.0" -r 0-0 --max-time 60 -o /dev/null "$URL"; then
+              echo "Último Padrón RUC publicado: $M (guardado: $HAVE)"
+              if [ "$M" != "$HAVE" ]; then
+                curl -fL --retry 3 --retry-delay 20 -A "Mozilla/5.0" --max-time 1800 -o padronruc/PadronRUC.zip "$URL" \
+                  && echo "$M" > padronruc/mes.txt \
+                  || echo "AVISO: no se pudo descargar el Padrón RUC $M"
+              fi
+              break
+            fi
+          done
+          ls -la padronruc || true
+          echo "mes=$(cat padronruc/mes.txt 2>/dev/null || echo ninguno)" >> "$GITHUB_OUTPUT"
       - run: python build.py
+      - name: Guardar Padrón RUC (actividad económica)
+        if: steps.da.outputs.mes != 'ninguno'
+        continue-on-error: true
+        uses: actions/cache/save@v4
+        with:
+          path: padronruc
+          key: padronruc-${{ steps.da.outputs.mes }}
       - name: Guardar padrón para la próxima vez
         if: hashFiles('padron/fecha.txt') != ''
         uses: actions/cache/save@v4
