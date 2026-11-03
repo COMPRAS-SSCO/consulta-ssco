@@ -59,6 +59,10 @@ mark{background:#ffe58f;color:inherit;padding:0}
 .op:has(input:checked){border-color:var(--pri);background:#eef4fb}
 .ver{border-radius:12px;padding:12px;margin-top:10px;font-size:14px;border:1.5px solid}
 .ver b.big{display:block;font-size:17px;margin-bottom:3px}
+.cons{border-top:1px solid var(--line);margin-top:12px;padding-top:12px}
+.cons input{width:100%;font-size:16px;padding:11px;margin:6px 0 8px}
+.btnpdf{width:100%;padding:13px;border:0;border-radius:10px;background:var(--grn);color:#fff;font-size:16px;font-weight:700}
+.btnpdf:disabled{background:#c5ccd3}
 .reset{background:none;border:0;color:var(--pri);font-weight:600;font-size:13.5px;padding:8px 0;text-decoration:underline}
 .lnk{display:block;text-align:center;margin-top:10px;padding:11px;border-radius:10px;background:#fff;border:1.5px solid var(--pri);color:var(--pri);font-weight:600;font-size:14.5px;text-decoration:none}
 </style>
@@ -88,6 +92,10 @@ mark{background:#ffe58f;color:inherit;padding:0}
 <a class="lnk" href="https://e-consultaruc.sunat.gob.pe/cl-ti-itmrconsruc/FrameCriterioBusquedaWeb.jsp" target="_blank" rel="noopener" style="margin:0 0 6px">🔎 Abrir Consulta RUC de SUNAT</a>
 <div id="qs"></div>
 <div id="ver"></div>
+<div class="cons"><b>📄 Constancia de consulta</b>
+<div class="intro" id="consMsg">Primero consulta un RUC válido arriba y completa los 5 puntos.</div>
+<input id="usr" autocomplete="name" placeholder="Tu nombre y apellido (quién consulta)">
+<button class="btnpdf" type="button" id="pdf" disabled>Descargar constancia (PDF)</button></div>
 <button class="reset" type="button" id="rst">↺ Limpiar evaluación</button>
 <p class="intro" style="margin-top:4px">Guía interna de control. Ante cualquier resultado en ámbar o rojo, la decisión final la toma <b>Contabilidad</b>.</p>
 </div>
@@ -117,7 +125,7 @@ q.value="";out.innerHTML="";
 if(m==="ruc"){q.inputMode="numeric";q.maxLength=11;q.placeholder="Ingresa el RUC (11 dígitos)";hint.textContent="Escribe el RUC del proveedor tal como figura en la cotización o factura.";}
 else{q.inputMode="text";q.removeAttribute("maxlength");q.placeholder="Ej.: INVERSIONES PEREZ";hint.textContent="Escribe al menos 3 letras. Busca por todas las palabras, sin importar tildes ni el orden.";}
 q.focus();}
-q.addEventListener("input",()=>{if(mode==="ruc"){const v=q.value.replace(/\D/g,"").slice(0,11);if(q.value!==v)q.value=v;if(v.length===11)search();else out.innerHTML="";}});
+q.addEventListener("input",()=>{if(mode==="ruc"){const v=q.value.replace(/\D/g,"").slice(0,11);if(q.value!==v)q.value=v;if(v.length===11)search();else{out.innerHTML="";LR=null;updCons();}}});
 document.getElementById("tRuc").onclick=()=>setMode("ruc");
 document.getElementById("tNom").onclick=()=>setMode("nom");
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -163,14 +171,14 @@ function search(){
 const v=q.value.trim();
 if(mode==="ruc"){
 const ruc=v.replace(/\D/g,"");
-const err=rucValido(ruc);if(err){out.innerHTML=bad(err);return;}
+const err=rucValido(ruc);LR=null;updCons();if(err){out.innerHTML=bad(err);return;}
 const hits=D.filter(r=>r[0]===ruc);const sres=hits.length?red(hits.length)+hits.map(card).join(""):null;
-if(!PFECHA){out.innerHTML=sres||ok("El RUC "+ruc);return;}
+if(!PFECHA){LR={ruc,nom:"(no disponible)",est:"-",cond:"-",ssco:!!sres};updCons();out.innerHTML=sres||ok("El RUC "+ruc);return;}
 const my=++SEQ;out.innerHTML=`<div class="alert n"><p>🔎 Buscando razón social en el padrón SUNAT…</p></div>`;
 padron(ruc).then(f=>{if(my!==SEQ)return;
 if(f===null){out.innerHTML=noReg(ruc)+(sres||"");return;}
 if(f===undefined){out.innerHTML=warn("No se pudo obtener la razón social (revisa tu conexión a internet).")+(sres||ok("El RUC "+ruc));return;}
-out.innerHTML=ficha(f)+(sres||ok("El RUC "+ruc,true));});
+LR={ruc,nom:f.nom,est:f.est,cond:f.cond,ssco:!!sres};updCons();out.innerHTML=ficha(f)+(sres||ok("El RUC "+ruc,true));});
 }else{
 const t=norm(v);
 if(!/[A-ZÑ]/.test(t)||t.replace(/[^A-ZÑ]/g,"").length<3){out.innerHTML=badNom("Escribe al menos 3 letras. Una razón social no puede ser solo números o símbolos.");return;}
@@ -186,18 +194,71 @@ const QS=[
 {k:"tra",t:"3. Cantidad de trabajadores y/o prestadores de servicio",w:"Debe ser coherente con lo que el proveedor dice que hace. No tener personal para el servicio o volumen ofrecido es justamente el criterio de un SSCO.",o:[["v","Tiene trabajadores acordes al servicio o volumen ofrecido"],["a","Tiene pocos trabajadores para el volumen o servicio ofrecido"],["r","No registra trabajadores (0) y el servicio requiere personal"]]},
 {k:"deu",t:"4. Deuda coactiva",w:"Si tiene deuda en cobranza coactiva, SUNAT puede ordenarnos retener los pagos al proveedor (embargo en forma de retención). Contabilidad debe verificarlo antes de cada pago.",o:[["v","No registra deuda coactiva"],["a","Registra deuda en cobranza coactiva"]]},
 {k:"omi",t:"5. Omisiones tributarias",w:"Si no presenta sus declaraciones, es probable que no declare nuestras compras: alto riesgo de que se desconozca el crédito fiscal.",o:[["v","No registra omisiones"],["a","Registra omisiones antiguas (más de 12 meses)"],["r","Registra omisiones recientes (últimos 12 meses)"]]}];
+let LR=null;
 const qsEl=document.getElementById("qs"),verEl=document.getElementById("ver");
 qsEl.innerHTML=QS.map(x=>`<div class="q"><div class="t">${x.t}</div><div class="w">${x.w}</div>${x.o.map((o,i)=>`<label class="op"><input type="radio" name="${x.k}" value="${o[0]}">${o[1]}</label>`).join("")}</div>`).join("");
+let VER=null;
 function evaluar(){const v=QS.map(x=>(document.querySelector(`input[name=${x.k}]:checked`)||{}).value);const n=v.filter(Boolean).length;
-if(!n){verEl.innerHTML="";return;}
+VER=null;if(!n){verEl.innerHTML="";updCons();return;}
 const r=v.includes("r"),a=v.includes("a");let h;
+if(n===QS.length)VER=r?"NO COMPRAR":a?"CONSULTAR CON CONTABILIDAD":"SE PUEDE COMPRAR";
 if(r)h=`<div class="ver r"><b class="big">⛔ NO COMPRAR</b>El proveedor presenta señales de alto riesgo. No emitir la orden de compra sin la aprobación de Contabilidad.</div>`;
 else if(a)h=`<div class="ver a"><b class="big">⚠️ CONSULTAR CON CONTABILIDAD</b>Hay observaciones. Antes de comprar, envía a Contabilidad el RUC y lo que encontraste para que evalúe y pida sustento adicional al proveedor.</div>`;
 else if(n<QS.length)h=`<div class="ver n"><b class="big">Faltan ${QS.length-n} punto(s) por revisar</b>Completa la evaluación para obtener el resultado.</div>`;
 else h=`<div class="ver g"><b class="big">✅ SE PUEDE COMPRAR</b>No se encontraron observaciones. Confirma también que no figure como SSCO y que esté ACTIVO y HABIDO, y guarda el sustento de la operación.</div>`;
-verEl.innerHTML=h;}
+verEl.innerHTML=h;updCons();}
 qsEl.addEventListener("change",evaluar);
 document.getElementById("rst").onclick=()=>{qsEl.querySelectorAll("input").forEach(i=>i.checked=false);evaluar();};
+const usr=document.getElementById("usr"),pdfB=document.getElementById("pdf"),cMsg=document.getElementById("consMsg");
+try{usr.value=localStorage.getItem("ssco_usr")||"";}catch(e){}
+function updCons(){const okR=!!LR,okE=!!VER,okU=usr.value.trim().length>=3;
+pdfB.disabled=!(okR&&okE&&okU);
+cMsg.textContent=!okR?"Primero consulta un RUC válido arriba.":!okE?"Completa los 5 puntos de la evaluación.":!okU?"Escribe tu nombre para generar la constancia.":"Lista para descargar: RUC "+LR.ruc+" · "+VER+".";}
+usr.addEventListener("input",()=>{try{localStorage.setItem("ssco_usr",usr.value.trim());}catch(e){}updCons();});
+function wrapT(c,txt,w){const ws=String(txt).split(" ");const L=[];let l="";for(const x of ws){const tt=l?l+" "+x:x;if(c.measureText(tt).width>w&&l){L.push(l);l=x;}else l=tt;}if(l)L.push(l);return L;}
+function makePDF(jpg){const b64=jpg.split(",")[1],bin=atob(b64),img=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)img[i]=bin.charCodeAt(i);
+const W=595.28,H=841.89,cs=`q ${W} 0 0 ${H} 0 0 cm /Im0 Do Q`;const enc=new TextEncoder();const parts=[];let off=0;const xref=[];
+const add=x=>{const u=typeof x==="string"?enc.encode(x):x;parts.push(u);off+=u.length;};
+add("%PDF-1.4\n");
+xref.push(off);add("1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n");
+xref.push(off);add("2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj\n");
+xref.push(off);add(`3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 ${W} ${H}]/Resources<</XObject<</Im0 4 0 R>>>>/Contents 5 0 R>>endobj\n`);
+xref.push(off);add(`4 0 obj<</Type/XObject/Subtype/Image/Width ${CW}/Height ${CH}/ColorSpace/DeviceRGB/BitsPerComponent 8/Filter/DCTDecode/Length ${img.length}>>stream\n`);add(img);add("\nendstream endobj\n");
+xref.push(off);add(`5 0 obj<</Length ${cs.length}>>stream\n${cs}\nendstream endobj\n`);
+const xo=off;add(`xref\n0 6\n0000000000 65535 f \n${xref.map(o=>String(o).padStart(10,"0")+" 00000 n \n").join("")}trailer<</Size 6/Root 1 0 R>>\nstartxref\n${xo}\n%%EOF`);
+return new Blob(parts,{type:"application/pdf"});}
+const CW=1240,CH=1754;
+pdfB.onclick=async()=>{if(pdfB.disabled)return;pdfB.disabled=true;const old=pdfB.textContent;pdfB.textContent="Generando…";
+try{const now=new Date(),fh=now.toLocaleString("es-PE",{timeZone:"America/Lima",day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:false});
+const ans=QS.map(x=>{const i=[...document.querySelectorAll(`input[name=${x.k}]`)].findIndex(e=>e.checked);return [x.t.replace(/^\d+\. /,""),x.o[i][1],x.o[i][0]];});
+const body=[LR.ruc,LR.nom,LR.est,LR.cond,LR.ssco,ans.map(a=>a[1]).join("|"),VER,usr.value.trim(),now.toISOString()].join("#");
+const code=[...new Uint8Array(await crypto.subtle.digest("SHA-256",new TextEncoder().encode(body)))].slice(0,5).map(b=>b.toString(16).padStart(2,"0")).join("").toUpperCase();
+const cv=document.createElement("canvas");cv.width=CW;cv.height=CH;const c=cv.getContext("2d");const F="Helvetica, Arial, sans-serif",M=100;let y=0;
+c.fillStyle="#fff";c.fillRect(0,0,CW,CH);c.fillStyle="#0b4f8a";c.fillRect(0,0,CW,175);
+c.fillStyle="#fff";c.font=`bold 50px ${F}`;c.fillText("CONSTANCIA DE CONSULTA DE PROVEEDOR",M,90);
+c.font=`28px ${F}`;c.fillText("Verificación SSCO y Consulta RUC (SUNAT) previa a la compra · Área de Compras",M,140);
+y=240;const ink="#1b2430";
+const row=(k,v,b,col)=>{c.fillStyle=ink;c.font=`bold 27px ${F}`;c.fillText(k,M,y);c.font=`${b?"bold ":""}27px ${F}`;c.fillStyle=col||ink;const L=wrapT(c,v,CW-M-420);L.forEach((l,i)=>c.fillText(l,M+380,y+i*36));y+=36*L.length+8;};
+const sec=s=>{y+=12;c.fillStyle="#0b4f8a";c.font=`bold 31px ${F}`;c.fillText(s,M,y);c.fillStyle="#dfe4ea";c.fillRect(M,y+13,CW-2*M,3);y+=54;};
+row("Fecha y hora:",fh+" (hora Lima)");row("Consultado por:",usr.value.trim(),true);row("Código de verificación:",code,true);
+sec("1. Datos del proveedor");row("RUC:",LR.ruc,true);row("Razón social:",LR.nom,true);
+const okE=LR.est==="ACTIVO"||LR.est==="-",okC=LR.cond==="HABIDO"||LR.cond==="-";
+row("Estado:",LR.est,true,okE?"#067647":"#b42318");row("Condición:",LR.cond,true,okC?"#067647":"#b42318");
+sec("2. Relación de SSCO (SUNAT)");row("Resultado:",LR.ssco?"FIGURA en la relación de Sujetos sin Capacidad Operativa":"No figura en la relación de SSCO",true,LR.ssco?"#b42318":"#067647");row("Lista vigente al:",LAST);
+sec("3. Evaluación en Consulta RUC");ans.forEach(a=>{c.fillStyle=a[2]==="v"?"#067647":a[2]==="a"?"#b54708":"#b42318";c.beginPath();c.arc(M+12,y-10,11,0,7);c.fill();
+c.fillStyle=ink;c.font=`bold 26px ${F}`;const K=wrapT(c,a[0],330);K.forEach((l,i)=>c.fillText(l,M+36,y+i*34));c.font=`26px ${F}`;const L=wrapT(c,a[1],CW-M-420);L.forEach((l,i)=>c.fillText(l,M+380,y+i*34));y+=34*Math.max(K.length,L.length)+12;});
+sec("4. Resultado");
+if(LR.ssco||!okE||!okC){c.fillStyle="#b42318";c.font=`bold 26px ${F}`;wrapT(c,"Observación: el proveedor figura como SSCO o no está ACTIVO y HABIDO. No proceder sin aprobación de Contabilidad.",CW-2*M).forEach(l=>{c.fillText(l,M,y);y+=34;});y+=6;}
+c.fillStyle=VER==="SE PUEDE COMPRAR"?"#067647":VER==="NO COMPRAR"?"#b42318":"#b54708";c.fillRect(M,y,CW-2*M,92);
+c.fillStyle="#fff";c.font=`bold 52px ${F}`;c.textAlign="center";c.fillText(VER,CW/2,y+63);c.textAlign="left";y+=140;
+c.fillStyle="#5f6b7a";c.font=`23px ${F}`;wrapT(c,"Constancia generada por la herramienta interna Consulta SSCO – Compras ("+location.origin+location.pathname+"). Las respuestas de la sección 3 fueron registradas por el usuario según lo observado en Consulta RUC de SUNAT. Guía interna de control: ante resultados en ámbar o rojo la decisión final corresponde a Contabilidad.",CW-2*M).forEach(l=>{c.fillText(l,M,y);y+=33;});
+y=Math.max(y+60,CH-150);c.fillStyle="#1b2430";c.fillRect(M,y,520,2);c.font=`25px ${F}`;c.fillText("Firma de quien consulta: "+usr.value.trim(),M,y+38);
+const blob=makePDF(cv.toDataURL("image/jpeg",0.92));
+const st=now.toLocaleString("sv-SE",{timeZone:"America/Lima"}).replace(/[-:]/g,"").replace(" ","_").slice(0,13);
+const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="Constancia_RUC_"+LR.ruc+"_"+st+".pdf";document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},4000);
+pdfB.textContent="✔ Constancia descargada";setTimeout(()=>{pdfB.textContent=old;updCons();},2500);
+}catch(e){console.error(e);pdfB.textContent=old;updCons();cMsg.textContent="No se pudo generar el PDF. Inténtalo otra vez.";}};
+updCons();
 document.getElementById("f").addEventListener("submit",e=>{e.preventDefault();search();q.blur();});
 q.focus();
 if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));}
