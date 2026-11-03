@@ -7,6 +7,8 @@ on:
     - cron: "0 17 28-31 * *"
     # Respaldo: día 1 a las 12:00 m. por si SUNAT publicó después del mediodía.
     - cron: "0 17 1 * *"
+    # Cada lunes 12:00 m.: refresca el padrón reducido (razón social, estado y condición).
+    - cron: "0 17 * * 1"
   workflow_dispatch:   # botón "Run workflow" para actualizar a mano
   push:
     branches: [main]
@@ -32,7 +34,8 @@ jobs:
           if [ "${{ github.event_name }}" != "schedule" ]; then echo "run=true" >> "$GITHUB_OUTPUT"; exit 0; fi
           HOY=$(TZ=America/Lima date +%d)
           MANANA=$(TZ=America/Lima date -d tomorrow +%d)
-          if [ "$MANANA" = "01" ] || [ "$HOY" = "01" ]; then R=true; else R=false; fi
+          DIA=$(TZ=America/Lima date +%u)
+          if [ "$MANANA" = "01" ] || [ "$HOY" = "01" ] || [ "$DIA" = "1" ]; then R=true; else R=false; fi
           echo "Hoy: $HOY  ->  actualizar: $R"
           echo "run=$R" >> "$GITHUB_OUTPUT"
   build:
@@ -44,8 +47,26 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install openpyxl && mkdir -p data
+      - run: pip install openpyxl pillow && mkdir -p data
+      - name: Recuperar padrón guardado
+        uses: actions/cache/restore@v4
+        with:
+          path: padron
+          key: padron-${{ github.run_id }}
+          restore-keys: padron-
+      - name: Descargar padrón reducido del RUC (SUNAT)
+        run: |
+          curl -L --fail --retry 3 --retry-delay 20 --max-time 1800 -A "Mozilla/5.0" \
+            -o padron.zip http://www2.sunat.gob.pe/padron_reducido_ruc.zip \
+            || { echo "AVISO: no se pudo descargar el padrón"; rm -f padron.zip; }
+          ls -la padron.zip || true
       - run: python build.py
+      - name: Guardar padrón para la próxima vez
+        if: hashFiles('padron/fecha.txt') != ''
+        uses: actions/cache/save@v4
+        with:
+          path: padron
+          key: padron-${{ github.run_id }}
       - name: Guardar el Excel nuevo en el repositorio
         run: |
           git config user.name "actualizador-ssco"
