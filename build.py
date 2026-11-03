@@ -49,7 +49,7 @@ last = max((r[8] for r in rows), key=key)
 print(f"SSCO: {len(rows)} registros, última publicación {last}")
 
 # ---------- 2a. Actividad económica (Padrón RUC - datos abiertos SUNAT) ----------
-ACT = {}; ACTS = []; actidx = {}
+ACT = {}; ACTS = []; actidx = {}; TPER = ""
 dz = pathlib.Path("padronruc/PadronRUC.zip")
 if dz.exists() and dz.stat().st_size > 1_000_000:
     try:
@@ -89,7 +89,13 @@ if dz.exists() and dz.stat().st_size > 1_000_000:
                         j = actidx.get(s)
                         if j is None: j = actidx[s] = len(ACTS); ACTS.append(s)
                     ACT[ruc] = f"{j}|{tr}"
-        print(f"Actividad económica: {len(ACT)} RUC, {len(ACTS)} descripciones distintas")
+        try:  # trabajadores (PLAME) = 2 meses antes del mes de publicación
+            mp = pathlib.Path("padronruc/mes.txt").read_text().strip()
+            y, m = int(mp[:4]), int(mp[4:6]) - 2
+            if m < 1: y, m = y - 1, m + 12
+            TPER = f"{y}-{m:02d}"
+        except Exception: TPER = ""
+        print(f"Actividad económica: {len(ACT)} RUC, {len(ACTS)} descripciones distintas; trabajadores periodo {TPER}")
     except Exception as e:
         print("AVISO: no se pudo leer el Padrón RUC de datos abiertos:", repr(e)); ACT = {}; ACTS = []
 else:
@@ -116,6 +122,7 @@ if zp.exists() and zp.stat().st_size > 10_000_000:
             (nuevo / "p" / f"{k}.gz").write_bytes(gzip.compress(("\n".join(v) + "\n").encode("utf-8"), 9))
         (nuevo / "fecha.txt").write_text(hoy)
         (nuevo / "act.json").write_text(json.dumps(ACTS, ensure_ascii=False), encoding="utf-8")
+        (nuevo / "tper.txt").write_text(TPER)
         shutil.rmtree(PAD, ignore_errors=True); nuevo.rename(PAD)
         print(f"Padrón: {n} RUC en {len(shards)} fragmentos")
     except Exception as e:
@@ -123,6 +130,7 @@ if zp.exists() and zp.stat().st_size > 10_000_000:
 else:
     print("AVISO: no se descargó el padrón; se usan los fragmentos anteriores si existen")
 pfecha = (PAD / "fecha.txt").read_text().strip() if (PAD / "fecha.txt").exists() else ""
+tper = (PAD / "tper.txt").read_text().strip() if (PAD / "tper.txt").exists() else ""
 if pfecha:
     shutil.rmtree(SITE / "p", ignore_errors=True); shutil.copytree(PAD / "p", SITE / "p")
     shutil.copy(PAD / "act.json", SITE / "act.json") if (PAD / "act.json").exists() else (SITE / "act.json").write_text("[]")
@@ -131,7 +139,7 @@ print("Padrón disponible:", pfecha or "NO")
 # ---------- 3. Página + app instalable ----------
 html = (pathlib.Path("template.html").read_text(encoding="utf-8")
         .replace("__DATA__", json.dumps(rows, ensure_ascii=False, separators=(",", ":")))
-        .replace("__LAST__", last).replace("__CHK__", checked).replace("__PFECHA__", pfecha))
+        .replace("__LAST__", last).replace("__CHK__", checked).replace("__PFECHA__", pfecha).replace("__TPER__", tper))
 (SITE / "index.html").write_text(html, encoding="utf-8")
 (SITE / "manifest.webmanifest").write_text(json.dumps({
     "name": "Consulta SSCO – Compras", "short_name": "Consulta SSCO", "start_url": "./", "scope": "./",
