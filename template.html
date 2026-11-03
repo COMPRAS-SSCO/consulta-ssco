@@ -56,7 +56,7 @@ mark{background:#ffe58f;color:inherit;padding:0}
 <button id="tNom" type="button">Por razón social</button>
 </div>
 <form id="f" class="row">
-<input id="q" inputmode="numeric" autocomplete="off" placeholder="Ingresa el RUC (11 dígitos)">
+<input id="q" inputmode="numeric" maxlength="11" autocomplete="off" placeholder="Ingresa el RUC (11 dígitos)">
 <button class="go" type="submit">Buscar</button>
 </form>
 <div class="hint" id="hint">Escribe el RUC del proveedor tal como figura en la cotización o factura.</div>
@@ -84,9 +84,10 @@ const q=document.getElementById("q"),out=document.getElementById("out"),hint=doc
 document.getElementById("foot").textContent="Base: "+D.length.toLocaleString("es-PE")+" SSCO · Última publicación incluida: "+LAST+" · Revisado en SUNAT: "+CHK+" · Fuente: SUNAT";
 function setMode(m){mode=m;document.getElementById("tRuc").classList.toggle("on",m==="ruc");document.getElementById("tNom").classList.toggle("on",m==="nom");
 q.value="";out.innerHTML="";
-if(m==="ruc"){q.inputMode="numeric";q.placeholder="Ingresa el RUC (11 dígitos)";hint.textContent="Escribe el RUC del proveedor tal como figura en la cotización o factura.";}
-else{q.inputMode="text";q.placeholder="Ej.: INVERSIONES PEREZ";hint.textContent="Escribe al menos 3 letras. Busca por todas las palabras, sin importar tildes ni el orden.";}
+if(m==="ruc"){q.inputMode="numeric";q.maxLength=11;q.placeholder="Ingresa el RUC (11 dígitos)";hint.textContent="Escribe el RUC del proveedor tal como figura en la cotización o factura.";}
+else{q.inputMode="text";q.removeAttribute("maxlength");q.placeholder="Ej.: INVERSIONES PEREZ";hint.textContent="Escribe al menos 3 letras. Busca por todas las palabras, sin importar tildes ni el orden.";}
 q.focus();}
+q.addEventListener("input",()=>{if(mode==="ruc"){const v=q.value.replace(/\D/g,"").slice(0,11);if(q.value!==v)q.value=v;}});
 document.getElementById("tRuc").onclick=()=>setMode("ruc");
 document.getElementById("tNom").onclick=()=>setMode("nom");
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -105,6 +106,8 @@ let d=11-s%11;if(d===10)d=0;if(d===11)d=1;
 if(d!==+r[10])return "El último dígito (dígito verificador) no corresponde. Probablemente hay un número mal digitado o dos números cambiados de lugar.";
 return "";}
 function bad(msg){return `<div class="alert e"><h2>❌ RUC NO VÁLIDO</h2><p>${msg}</p><p style="margin-top:6px">Revisa el RUC en la cotización o factura, o búscalo por razón social en Consulta RUC de SUNAT.</p>${lnk}</div>`;}
+function badNom(msg){return `<div class="alert e"><h2>❌ RAZÓN SOCIAL NO VÁLIDA</h2><p>${msg}</p></div>`;}
+function noNom(v){return `<div class="alert a"><h2>⚠️ Sin coincidencias en la lista SSCO</h2><p>“${v}” no aparece en la relación de SSCO publicada hasta el ${LAST}.</p><p style="margin-top:6px"><b>Esto no confirma que la razón social exista.</b> Búscala en Consulta RUC de SUNAT (opción <b>Por Nombre o Razón Social</b>): si no aparece ahí, la razón social <b>NO ES VÁLIDA</b> y no se debe proceder con la compra. Si aparece, copia su RUC y consúltalo aquí en la pestaña <b>Por RUC</b>.</p>${lnk}</div>`;}
 function warn(t){return `<div class="alert a"><h2>Revisa el dato</h2><p>${t}</p></div>`;}
 function search(){
 const v=q.value.trim();
@@ -115,10 +118,10 @@ const hits=D.filter(r=>r[0]===ruc);
 out.innerHTML=hits.length?red(hits.length)+hits.map(card).join(""):ok("El RUC "+ruc);
 }else{
 const t=norm(v);
-if(t.replace(/ /g,"").length<3){out.innerHTML=warn("Escribe al menos 3 letras de la razón social.");return;}
+if(!/[A-ZÑ]/.test(t)||t.replace(/[^A-ZÑ]/g,"").length<3){out.innerHTML=badNom("Escribe al menos 3 letras. Una razón social no puede ser solo números o símbolos.");return;}
 const w=t.split(" ");
 const hits=[];IDX.forEach((s,i)=>{if(w.every(x=>s.includes(x)))hits.push(D[i]);});
-if(!hits.length){out.innerHTML=ok("“"+esc(v)+"”")+warn("La búsqueda por nombre puede fallar si la razón social se escribe distinto. Para confirmar, busca por RUC.");return;}
+if(!hits.length){out.innerHTML=noNom(esc(v));return;}
 const show=hits.slice(0,50);
 out.innerHTML=red(hits.length)+(hits.length>50?warn("Se muestran 50 de "+hits.length+" resultados. Escribe más palabras o busca por RUC."):"")+show.map(card).join("");
 }}
