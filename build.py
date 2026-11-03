@@ -64,19 +64,24 @@ if dz.exists() and dz.stat().st_size > 1_000_000:
                 print("Padrón RUC (datos abiertos) columnas:", H)
                 ri = next(i for i, h in enumerate(H) if h == "RUC" or ("RUC" in h and "TIPO" not in h))
                 ac = [i for i, h in enumerate(H) if "CIIU" in h or "ACTIVIDAD" in h]
-                print("  columna RUC:", H[ri], "| columnas actividad:", [H[i] for i in ac])
+                fx = lambda *ks: next((i for i in ac if all(k in H[i] for k in ks)), None)
+                ip = [x for x in (fx("REVISION4", "PRINCIPAL"), fx("PRINCIPAL")) if x is not None]
+                isec = [x for x in (fx("REVISION4", "SECUNDARIA"), fx("SECUNDARIA")) if x is not None]
+                print("  columna RUC:", H[ri], "| principal:", [H[i] for i in ip], "| secundaria:", [H[i] for i in isec])
                 rd = csv.reader(tf, delimiter=dl)
                 for k, r in enumerate(rd):
                     if k < 2: print("  ejemplo:", r)
                     if len(r) <= ri: continue
                     ruc = r[ri].strip()
                     if len(ruc) != 11: continue
-                    vals = []
-                    for i in ac:
-                        v = r[i].strip() if i < len(r) else ""
-                        if v and v not in ("-", "0", "NULL") and v not in vals: vals.append(v)
-                    if not vals: continue
-                    s = " · ".join(vals)
+                    def first(ix):
+                        for i in ix:
+                            v = r[i].strip() if i < len(r) else ""
+                            if v and v.upper() not in ("-", "0", "NULL", "NO DISPONIBLE"): return v
+                        return ""
+                    pr, se = first(ip), first(isec)
+                    if not pr and not se: continue
+                    s = (pr or "-") + ((" · " + se) if se and se != pr else "")
                     j = actidx.get(s)
                     if j is None: j = actidx[s] = len(ACTS); ACTS.append(s)
                     ACT[ruc] = j
