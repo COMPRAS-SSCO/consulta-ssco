@@ -4,6 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Consulta SSCO – Compras</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0b4f8a">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Consulta SSCO">
 <style>
 :root{--bg:#f4f6f9;--card:#fff;--ink:#1b2430;--mut:#5f6b7a;--line:#dfe4ea;--pri:#0b4f8a;--red:#b42318;--redbg:#fef3f2;--grn:#067647;--grnbg:#ecfdf3;--amb:#93370d;--ambbg:#fffaeb}
 *{box-sizing:border-box}
@@ -40,6 +45,13 @@ input:focus{border-color:var(--pri)}
 footer{font-size:12px;color:var(--mut);text-align:center;margin-top:18px}
 mark{background:#ffe58f;color:inherit;padding:0}
 .e{background:var(--redbg);border-color:#fda29b;color:var(--red)}
+.ficha{background:#fff;border:1.5px solid var(--line);border-radius:14px;padding:14px;margin-top:14px}
+.ficha .lbl{font-size:12px;color:var(--mut);text-transform:uppercase;letter-spacing:.04em}
+.ficha .nom{font-size:19px;font-weight:800;margin:3px 0 8px}
+.tag{display:inline-block;font-size:12.5px;font-weight:700;padding:3px 9px;border-radius:999px;margin:0 6px 4px 0}
+.tg{background:var(--grnbg);color:var(--grn)}.tr{background:var(--redbg);color:var(--red)}
+.sm{font-size:12.5px;color:var(--mut);margin-top:6px}
+.n{background:#fff;border-color:var(--line);color:var(--mut)}
 .lnk{display:block;text-align:center;margin-top:10px;padding:11px;border-radius:10px;background:#fff;border:1.5px solid var(--pri);color:var(--pri);font-weight:600;font-size:14.5px;text-decoration:none}
 </style>
 </head>
@@ -77,6 +89,7 @@ mark{background:#ffe58f;color:inherit;padding:0}
 const D=__DATA__;
 const LAST="__LAST__";
 const CHK="__CHK__";
+const PFECHA="__PFECHA__";
 const norm=s=>s.normalize("NFD").replace(/[̀-ͯ]/g,"").toUpperCase().replace(/[^A-Z0-9Ñ ]/g," ").replace(/\s+/g," ").trim();
 const IDX=D.map(r=>norm(r[1]));
 let mode="ruc";
@@ -87,7 +100,7 @@ q.value="";out.innerHTML="";
 if(m==="ruc"){q.inputMode="numeric";q.maxLength=11;q.placeholder="Ingresa el RUC (11 dígitos)";hint.textContent="Escribe el RUC del proveedor tal como figura en la cotización o factura.";}
 else{q.inputMode="text";q.removeAttribute("maxlength");q.placeholder="Ej.: INVERSIONES PEREZ";hint.textContent="Escribe al menos 3 letras. Busca por todas las palabras, sin importar tildes ni el orden.";}
 q.focus();}
-q.addEventListener("input",()=>{if(mode==="ruc"){const v=q.value.replace(/\D/g,"").slice(0,11);if(q.value!==v)q.value=v;}});
+q.addEventListener("input",()=>{if(mode==="ruc"){const v=q.value.replace(/\D/g,"").slice(0,11);if(q.value!==v)q.value=v;if(v.length===11)search();else out.innerHTML="";}});
 document.getElementById("tRuc").onclick=()=>setMode("ruc");
 document.getElementById("tNom").onclick=()=>setMode("nom");
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -95,7 +108,27 @@ function card(r){return `<div class="item"><div class="ruc">RUC ${esc(r[0])}</di
 <dt>Resolución</dt><dd>${esc(r[3])}</dd><dt>Emisión</dt><dd>${esc(r[4])}</dd><dt>Quedó firme</dt><dd>${esc(r[5])}</dd>
 <dt>Publicado</dt><dd>${esc(r[8])}</dd><dt>Domicilio</dt><dd>${esc(r[2])}</dd><dt>Rep. legal</dt><dd>${esc(r[7])}${r[6]&&r[6]!==r[0]?" ("+esc(r[6])+")":""}</dd></dl></div>`;}
 function red(n){return `<div class="alert r"><h2>⛔ ALERTA: proveedor SSCO</h2><p>${n>1?n+" coincidencias figuran":"Figura"} en la relación de Sujetos sin Capacidad Operativa de SUNAT. <b>No proceder con la compra</b> y comunicar a Contabilidad.</p></div>`;}
-function ok(t){return `<div class="alert g"><h2>✅ No figura como SSCO</h2><p>${t} no aparece en la relación publicada hasta el ${LAST}. Igual verifica en Consulta RUC de SUNAT que esté <b>ACTIVO</b> y <b>HABIDO</b>.</p>${lnk}</div>`;}
+function ok(t,v){return `<div class="alert g"><h2>✅ No figura como SSCO</h2><p>${t} no aparece en la relación publicada hasta el ${LAST}.${v?"":" Igual verifica en Consulta RUC de SUNAT que esté <b>ACTIVO</b> y <b>HABIDO</b>."}</p>${v?"":lnk}</div>`;}
+const PC=new Map();
+async function padron(ruc){
+const k=ruc.slice(0,6);let txt=PC.get(k);
+if(txt===undefined){try{const r=await fetch("p/"+k+".gz");
+if(r.status===404){txt="";}else if(!r.ok){return undefined;}else{
+const b=new Uint8Array(await r.arrayBuffer());
+if(b[0]===0x1f&&b[1]===0x8b){if(!("DecompressionStream" in window))return undefined;
+txt=await new Response(new Blob([b]).stream().pipeThrough(new DecompressionStream("gzip"))).text();}
+else txt=new TextDecoder().decode(b);}
+PC.set(k,txt);}catch(e){return undefined;}}
+const s=ruc.slice(6)+"|";const i=txt.startsWith(s)?0:(txt.indexOf("\n"+s)+1||-1);
+if(i<0)return null;const ln=txt.slice(i,txt.indexOf("\n",i)>-1?txt.indexOf("\n",i):undefined).split("|");
+return {nom:ln[1],est:ln[2],cond:ln[3]};}
+function ficha(f){const eo=f.est==="ACTIVO",co=f.cond==="HABIDO";
+return `<div class="ficha"><div class="lbl">Razón social según SUNAT</div><div class="nom">${esc(f.nom)}</div>
+<span class="tag ${eo?"tg":"tr"}">${eo?"✔":"✖"} ${esc(f.est||"-")}</span><span class="tag ${co?"tg":"tr"}">${co?"✔":"✖"} ${esc(f.cond||"-")}</span>
+<div class="sm">¿Es el proveedor correcto? Si el nombre no coincide, <b>revisa el RUC digitado</b>. · Padrón SUNAT al ${PFECHA}</div></div>
+${eo&&co?"":`<div class="alert r"><h2>⛔ No proceder con la compra</h2><p>El contribuyente figura con estado <b>${esc(f.est)}</b> y condición <b>${esc(f.cond)}</b>. Solo se compra a proveedores <b>ACTIVOS</b> y <b>HABIDOS</b>. Comunicar a Contabilidad.</p></div>`}`;}
+function noReg(ruc){return `<div class="alert e"><h2>❌ RUC NO REGISTRADO</h2><p>El Sistema RUC <b>NO REGISTRA</b> el número de RUC <b>${ruc}</b> consultado (padrón reducido SUNAT al ${PFECHA}).</p><p style="margin-top:6px">Probablemente se digitó mal. Revisa el RUC en la cotización o factura.</p>${lnk}</div>`;}
+let SEQ=0;
 const SUNAT_URL="https://e-consultaruc.sunat.gob.pe/cl-ti-itmrconsruc/FrameCriterioBusquedaWeb.jsp";
 const lnk=`<a class="lnk" href="${SUNAT_URL}" target="_blank" rel="noopener">🔎 Verificar en Consulta RUC de SUNAT</a>`;
 function rucValido(r){
@@ -114,8 +147,13 @@ const v=q.value.trim();
 if(mode==="ruc"){
 const ruc=v.replace(/\D/g,"");
 const err=rucValido(ruc);if(err){out.innerHTML=bad(err);return;}
-const hits=D.filter(r=>r[0]===ruc);
-out.innerHTML=hits.length?red(hits.length)+hits.map(card).join(""):ok("El RUC "+ruc);
+const hits=D.filter(r=>r[0]===ruc);const sres=hits.length?red(hits.length)+hits.map(card).join(""):null;
+if(!PFECHA){out.innerHTML=sres||ok("El RUC "+ruc);return;}
+const my=++SEQ;out.innerHTML=`<div class="alert n"><p>🔎 Buscando razón social en el padrón SUNAT…</p></div>`;
+padron(ruc).then(f=>{if(my!==SEQ)return;
+if(f===null){out.innerHTML=noReg(ruc)+(sres||"");return;}
+if(f===undefined){out.innerHTML=warn("No se pudo obtener la razón social (revisa tu conexión a internet).")+(sres||ok("El RUC "+ruc));return;}
+out.innerHTML=ficha(f)+(sres||ok("El RUC "+ruc,true));});
 }else{
 const t=norm(v);
 if(!/[A-ZÑ]/.test(t)||t.replace(/[^A-ZÑ]/g,"").length<3){out.innerHTML=badNom("Escribe al menos 3 letras. Una razón social no puede ser solo números o símbolos.");return;}
@@ -127,6 +165,7 @@ out.innerHTML=red(hits.length)+(hits.length>50?warn("Se muestran 50 de "+hits.le
 }}
 document.getElementById("f").addEventListener("submit",e=>{e.preventDefault();search();q.blur();});
 q.focus();
+if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));}
 </script>
 </body>
 </html>
