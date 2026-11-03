@@ -2,8 +2,11 @@ name: Actualizar lista SSCO
 
 on:
   schedule:
-    # 8:00 a.m. hora de Lima, días 1 al 5 de cada mes (por si SUNAT publica con retraso)
-    - cron: "0 13 1-5 * *"
+    # 12:00 m. hora de Lima (17:00 UTC). Corre del 28 al 31 y el paso "check"
+    # deja pasar solo el ÚLTIMO día calendario del mes.
+    - cron: "0 17 28-31 * *"
+    # Respaldo: día 1 a las 12:00 m. por si SUNAT publicó después del mediodía.
+    - cron: "0 17 1 * *"
   workflow_dispatch:   # botón "Run workflow" para actualizar a mano
   push:
     branches: [main]
@@ -18,7 +21,23 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      run: ${{ steps.c.outputs.run }}
+    steps:
+      - id: c
+        name: Verificar si hoy es el último día del mes (hora Lima)
+        run: |
+          if [ "${{ github.event_name }}" != "schedule" ]; then echo "run=true" >> "$GITHUB_OUTPUT"; exit 0; fi
+          HOY=$(TZ=America/Lima date +%d)
+          MANANA=$(TZ=America/Lima date -d tomorrow +%d)
+          if [ "$MANANA" = "01" ] || [ "$HOY" = "01" ]; then R=true; else R=false; fi
+          echo "Hoy: $HOY  ->  actualizar: $R"
+          echo "run=$R" >> "$GITHUB_OUTPUT"
   build:
+    needs: check
+    if: needs.check.outputs.run == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
