@@ -125,7 +125,7 @@ return {nom:ln[1],est:ln[2],cond:ln[3]};}
 function ficha(f){const eo=f.est==="ACTIVO",co=f.cond==="HABIDO";
 return `<div class="ficha"><div class="lbl">Razón social según SUNAT</div><div class="nom">${esc(f.nom)}</div>
 <span class="tag ${eo?"tg":"tr"}">${eo?"✔":"✖"} ${esc(f.est||"-")}</span><span class="tag ${co?"tg":"tr"}">${co?"✔":"✖"} ${esc(f.cond||"-")}</span>
-<div class="sm">¿Es el proveedor correcto? Si el nombre no coincide, <b>revisa el RUC digitado</b>. · Padrón SUNAT al ${PFECHA}</div></div>
+<div class="sm">¿Es el proveedor correcto? Si el nombre no coincide, <b>revisa el RUC digitado</b>.</div></div>
 ${eo&&co?"":`<div class="alert r"><h2>⛔ No proceder con la compra</h2><p>El contribuyente figura con estado <b>${esc(f.est)}</b> y condición <b>${esc(f.cond)}</b>. Solo se compra a proveedores <b>ACTIVOS</b> y <b>HABIDOS</b>. Comunicar a Contabilidad.</p></div>`}`;}
 function noReg(ruc){return `<div class="alert e"><h2>❌ RUC NO REGISTRADO</h2><p>El Sistema RUC <b>NO REGISTRA</b> el número de RUC <b>${ruc}</b> consultado (padrón reducido SUNAT al ${PFECHA}).</p><p style="margin-top:6px">Probablemente se digitó mal. Revisa el RUC en la cotización o factura.</p>${lnk}</div>`;}
 let SEQ=0;
