@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Consulta SSCO – Compras</title>
+<style>
+:root{--bg:#f4f6f9;--card:#fff;--ink:#1b2430;--mut:#5f6b7a;--line:#dfe4ea;--pri:#0b4f8a;--red:#b42318;--redbg:#fef3f2;--grn:#067647;--grnbg:#ecfdf3;--amb:#93370d;--ambbg:#fffaeb}
+*{box-sizing:border-box}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--ink);font-size:16px;line-height:1.4}
+header{background:var(--pri);color:#fff;padding:18px 16px 22px}
+header h1{margin:0;font-size:20px}
+header p{margin:4px 0 0;font-size:13px;opacity:.85}
+main{max-width:640px;margin:-12px auto 0;padding:0 12px 40px}
+.box{background:var(--card);border-radius:14px;padding:14px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.tabs{display:flex;gap:6px;margin-bottom:10px}
+.tabs button{flex:1;padding:10px;border:1px solid var(--line);background:#fff;border-radius:10px;font-size:15px;font-weight:600;color:var(--mut)}
+.tabs button.on{background:var(--pri);border-color:var(--pri);color:#fff}
+.row{display:flex;gap:8px}
+input{flex:1;min-width:0;font-size:18px;padding:12px;border:1.5px solid var(--line);border-radius:10px;outline:none}
+input:focus{border-color:var(--pri)}
+.go{padding:0 18px;border:0;border-radius:10px;background:var(--pri);color:#fff;font-size:16px;font-weight:600}
+.hint{font-size:12.5px;color:var(--mut);margin:8px 2px 0}
+.alert{border-radius:14px;padding:14px;margin-top:14px;border:1.5px solid}
+.alert h2{margin:0 0 4px;font-size:18px}
+.alert p{margin:0;font-size:14px}
+.r{background:var(--redbg);border-color:#fda29b;color:var(--red)}
+.g{background:var(--grnbg);border-color:#75e0a7;color:var(--grn)}
+.a{background:var(--ambbg);border-color:#fedf89;color:var(--amb)}
+.item{background:#fff;border:1px solid var(--line);border-left:5px solid var(--red);border-radius:12px;padding:12px;margin-top:10px}
+.item .n{font-weight:700;font-size:15.5px}
+.item .ruc{font-family:ui-monospace,Menlo,monospace;font-size:15px;color:var(--red);font-weight:700}
+.item dl{margin:8px 0 0;display:grid;grid-template-columns:auto 1fr;gap:3px 10px;font-size:13px}
+.item dt{color:var(--mut)}
+.item dd{margin:0}
+.steps{margin-top:16px;font-size:13.5px}
+.steps h3{font-size:15px;margin:0 0 6px}
+.steps ol{margin:0;padding-left:20px}
+.steps li{margin-bottom:4px}
+footer{font-size:12px;color:var(--mut);text-align:center;margin-top:18px}
+mark{background:#ffe58f;color:inherit;padding:0}
+</style>
+</head>
+<body>
+<header>
+<h1>⚠️ Consulta de proveedores SSCO</h1>
+<p>Sujetos sin Capacidad Operativa publicados por SUNAT · Consultar antes de comprar</p>
+<p><b>Lista actualizada al __LAST__</b></p>
+</header>
+<main>
+<div class="box">
+<div class="tabs">
+<button id="tRuc" class="on" type="button">Por RUC</button>
+<button id="tNom" type="button">Por razón social</button>
+</div>
+<form id="f" class="row">
+<input id="q" inputmode="numeric" autocomplete="off" placeholder="Ingresa el RUC (11 dígitos)">
+<button class="go" type="submit">Buscar</button>
+</form>
+<div class="hint" id="hint">Escribe el RUC del proveedor tal como figura en la cotización o factura.</div>
+</div>
+<div id="out"></div>
+<div class="box steps">
+<h3>¿Qué hacer si el proveedor figura como SSCO?</h3>
+<ol>
+<li><b>No emitir la orden de compra</b> ni recibir comprobantes de este proveedor.</li>
+<li>Comunicar de inmediato al <b>área de Contabilidad</b>.</li>
+<li>Sus facturas <b>no otorgan crédito fiscal ni son gasto deducible</b> (D. Leg. 1532).</li>
+<li>Si ya hubo compras anteriores, enviar a Contabilidad las facturas, guías y sustento de pago.</li>
+</ol>
+</div>
+<footer id="foot"></footer>
+</main>
+<script>
+const D=__DATA__;
+const LAST="__LAST__";
+const CHK="__CHK__";
+const norm=s=>s.normalize("NFD").replace(/[̀-ͯ]/g,"").toUpperCase().replace(/[^A-Z0-9Ñ ]/g," ").replace(/\s+/g," ").trim();
+const IDX=D.map(r=>norm(r[1]));
+let mode="ruc";
+const q=document.getElementById("q"),out=document.getElementById("out"),hint=document.getElementById("hint");
+document.getElementById("foot").textContent="Base: "+D.length.toLocaleString("es-PE")+" SSCO · Última publicación incluida: "+LAST+" · Revisado en SUNAT: "+CHK+" · Fuente: SUNAT";
+function setMode(m){mode=m;document.getElementById("tRuc").classList.toggle("on",m==="ruc");document.getElementById("tNom").classList.toggle("on",m==="nom");
+q.value="";out.innerHTML="";
+if(m==="ruc"){q.inputMode="numeric";q.placeholder="Ingresa el RUC (11 dígitos)";hint.textContent="Escribe el RUC del proveedor tal como figura en la cotización o factura.";}
+else{q.inputMode="text";q.placeholder="Ej.: INVERSIONES PEREZ";hint.textContent="Escribe al menos 3 letras. Busca por todas las palabras, sin importar tildes ni el orden.";}
+q.focus();}
+document.getElementById("tRuc").onclick=()=>setMode("ruc");
+document.getElementById("tNom").onclick=()=>setMode("nom");
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+function card(r){return `<div class="item"><div class="ruc">RUC ${esc(r[0])}</div><div class="n">${esc(r[1])}</div><dl>
+<dt>Resolución</dt><dd>${esc(r[3])}</dd><dt>Emisión</dt><dd>${esc(r[4])}</dd><dt>Quedó firme</dt><dd>${esc(r[5])}</dd>
+<dt>Publicado</dt><dd>${esc(r[8])}</dd><dt>Domicilio</dt><dd>${esc(r[2])}</dd><dt>Rep. legal</dt><dd>${esc(r[7])}${r[6]&&r[6]!==r[0]?" ("+esc(r[6])+")":""}</dd></dl></div>`;}
+function red(n){return `<div class="alert r"><h2>⛔ ALERTA: proveedor SSCO</h2><p>${n>1?n+" coincidencias figuran":"Figura"} en la relación de Sujetos sin Capacidad Operativa de SUNAT. <b>No proceder con la compra</b> y comunicar a Contabilidad.</p></div>`;}
+function ok(t){return `<div class="alert g"><h2>✅ No figura como SSCO</h2><p>${t} no aparece en la relación publicada hasta el ${LAST}. Igual verifica en Consulta RUC de SUNAT que esté <b>ACTIVO</b> y <b>HABIDO</b>.</p></div>`;}
+function warn(t){return `<div class="alert a"><h2>Revisa el dato</h2><p>${t}</p></div>`;}
+function search(){
+const v=q.value.trim();
+if(mode==="ruc"){
+const ruc=v.replace(/\D/g,"");
+if(ruc.length!==11){out.innerHTML=warn("El RUC debe tener 11 dígitos (ingresaste "+ruc.length+").");return;}
+const hits=D.filter(r=>r[0]===ruc);
+out.innerHTML=hits.length?red(hits.length)+hits.map(card).join(""):ok("El RUC "+ruc);
+}else{
+const t=norm(v);
+if(t.replace(/ /g,"").length<3){out.innerHTML=warn("Escribe al menos 3 letras de la razón social.");return;}
+const w=t.split(" ");
+const hits=[];IDX.forEach((s,i)=>{if(w.every(x=>s.includes(x)))hits.push(D[i]);});
+if(!hits.length){out.innerHTML=ok("“"+esc(v)+"”")+warn("La búsqueda por nombre puede fallar si la razón social se escribe distinto. Para confirmar, busca por RUC.");return;}
+const show=hits.slice(0,50);
+out.innerHTML=red(hits.length)+(hits.length>50?warn("Se muestran 50 de "+hits.length+" resultados. Escribe más palabras o busca por RUC."):"")+show.map(card).join("");
+}}
+document.getElementById("f").addEventListener("submit",e=>{e.preventDefault();search();q.blur();});
+q.focus();
+</script>
+</body>
+</html>
+x
