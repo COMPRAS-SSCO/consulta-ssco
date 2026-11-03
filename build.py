@@ -67,7 +67,8 @@ if dz.exists() and dz.stat().st_size > 1_000_000:
                 fx = lambda *ks: next((i for i in ac if all(k in H[i] for k in ks)), None)
                 ip = [x for x in (fx("REVISION4", "PRINCIPAL"), fx("PRINCIPAL")) if x is not None]
                 isec = [x for x in (fx("REVISION4", "SECUNDARIA"), fx("SECUNDARIA")) if x is not None]
-                print("  columna RUC:", H[ri], "| principal:", [H[i] for i in ip], "| secundaria:", [H[i] for i in isec])
+                it = next((i for i, h in enumerate(H) if "TRAB" in h), None)
+                print("  columna RUC:", H[ri], "| trabajadores:", H[it] if it is not None else None, "| principal:", [H[i] for i in ip], "| secundaria:", [H[i] for i in isec])
                 rd = csv.reader(tf, delimiter=dl)
                 for k, r in enumerate(rd):
                     if k < 2: print("  ejemplo:", r)
@@ -80,11 +81,14 @@ if dz.exists() and dz.stat().st_size > 1_000_000:
                             if v and v.upper() not in ("-", "0", "NULL", "NO DISPONIBLE"): return v
                         return ""
                     pr, se = first(ip), first(isec)
-                    if not pr and not se: continue
-                    s = (pr or "-") + ((" · " + se) if se and se != pr else "")
-                    j = actidx.get(s)
-                    if j is None: j = actidx[s] = len(ACTS); ACTS.append(s)
-                    ACT[ruc] = j
+                    tr = first([it]) if it is not None else ""
+                    if not pr and not se and not tr: continue
+                    j = ""
+                    if pr or se:
+                        s = (pr or "-") + ((" · " + se) if se and se != pr else "")
+                        j = actidx.get(s)
+                        if j is None: j = actidx[s] = len(ACTS); ACTS.append(s)
+                    ACT[ruc] = f"{j}|{tr}"
         print(f"Actividad económica: {len(ACT)} RUC, {len(ACTS)} descripciones distintas")
     except Exception as e:
         print("AVISO: no se pudo leer el Padrón RUC de datos abiertos:", repr(e)); ACT = {}; ACTS = []
@@ -103,7 +107,7 @@ if zp.exists() and zp.stat().st_size > 10_000_000:
                     p = raw.rstrip("\r\n").split("|")
                     if len(p) < 4 or len(p[0]) != 11 or not p[0].isdigit(): continue
                     nom = p[1].strip().replace("\n", " ")
-                    a = ACT.get(p[0], "")
+                    a = ACT.get(p[0], "|")
                     shards[p[0][:6]].append(f"{p[0][6:]}|{nom}|{p[2].strip()}|{p[3].strip()}|{a}")
                     n += 1
         if n < 1_000_000: raise ValueError(f"solo {n} registros")
