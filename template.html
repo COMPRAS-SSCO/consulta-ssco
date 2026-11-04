@@ -58,6 +58,9 @@ mark{background:#ffe58f;color:inherit;padding:0}
 .op{display:flex;gap:8px;align-items:flex-start;font-size:14px;padding:7px 9px;border:1.5px solid var(--line);border-radius:10px;margin-top:6px;cursor:pointer}
 .op input{margin-top:3px;flex:none;width:18px;height:18px}
 .op:has(input:checked){border-color:var(--pri);background:#eef4fb}
+.lv{flex:none;width:58px;text-align:center;font-size:11px;font-weight:800;letter-spacing:.3px;padding:3px 0;border-radius:6px;margin-top:1px;color:#fff}
+.lv-v{background:#1e7d32}.lv-a{background:#f2b705;color:#3d2e00}.lv-r{background:#c62828}
+.op:has(input[value=v]:checked){border-color:#1e7d32;background:#e8f5e9}.op:has(input[value=a]:checked){border-color:#d9a400;background:#fff8e1}.op:has(input[value=r]:checked){border-color:#c62828;background:#fdecea}
 .ver{border-radius:12px;padding:12px;margin-top:10px;font-size:14px;border:1.5px solid}
 .ver b.big{display:block;font-size:17px;margin-bottom:3px}
 .cons{border-top:1px solid var(--line);margin-top:12px;padding-top:12px}
@@ -202,7 +205,7 @@ const QS=[
 {k:"omi",t:"4. Omisiones tributarias",w:"Si no presenta sus declaraciones, es probable que no declare nuestras compras: alto riesgo de que se desconozca el crédito fiscal.",o:[["v","No registra omisiones"],["a","Registra omisiones antiguas (más de 12 meses)"],["r","Registra omisiones recientes (últimos 12 meses)"]]}];
 let LR=null;
 const qsEl=document.getElementById("qs"),verEl=document.getElementById("ver");
-qsEl.innerHTML=QS.map(x=>`<div class="q"><div class="t">${x.t}</div><div class="w">${x.w}</div>${x.o.map((o,i)=>`<label class="op"><input type="radio" name="${x.k}" value="${o[0]}">${o[1]}</label>`).join("")}</div>`).join("");
+qsEl.innerHTML=QS.map(x=>`<div class="q"><div class="t">${x.t}</div><div class="w">${x.w}</div>${x.o.map((o,i)=>`<label class="op"><span class="lv lv-${o[0]}">${{v:"BUENO",a:"MEDIO",r:"MALO"}[o[0]]}</span><input type="radio" name="${x.k}" value="${o[0]}"><span>${o[1]}</span></label>`).join("")}</div>`).join("");
 let VER=null;
 function motivos(){if(!LR)return [];const m=[];if(LR.ssco)m.push("figura en la relación de SSCO");
 if(LR.est!=="ACTIVO"&&LR.est!=="-")m.push("está en estado "+LR.est);if(LR.cond!=="HABIDO"&&LR.cond!=="-")m.push("tiene condición "+LR.cond);return m;}
