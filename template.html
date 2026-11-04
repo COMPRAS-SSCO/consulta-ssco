@@ -58,6 +58,7 @@ mark{background:#ffe58f;color:inherit;padding:0}
 .op{display:flex;gap:8px;align-items:flex-start;font-size:14px;padding:7px 9px;border:1.5px solid var(--line);border-radius:10px;margin-top:6px;cursor:pointer}
 .op input{margin-top:3px;flex:none;width:18px;height:18px}
 .op:has(input:checked){border-color:var(--pri);background:#eef4fb}
+.cpmsg{font-size:13px;color:#0b4f8a;background:#eef4fb;border-radius:8px;margin:0 0 6px}.cpmsg:not(:empty){padding:7px 10px}
 .mo{margin:4px 0 0;padding-left:18px}.mo li{margin:2px 0}
 .lv{flex:none;width:58px;text-align:center;font-size:11px;font-weight:800;letter-spacing:.3px;padding:3px 0;border-radius:6px;margin-top:1px;color:#fff}
 .lv-v{background:#1e7d32}.lv-a{background:#f2b705;color:#3d2e00}.lv-r{background:#c62828}
@@ -94,7 +95,8 @@ mark{background:#ffe58f;color:inherit;padding:0}
 <div class="box ev" style="margin-top:16px" id="ev">
 <h3>🧾 ¿Podemos comprarle a este proveedor?</h3>
 <div id="evq"><p class="intro">Busca el RUC en Consulta RUC de SUNAT, revisa estos 5 puntos y marca lo que encuentres. La página te dirá si se puede comprar.</p>
-<a class="lnk" href="https://e-consultaruc.sunat.gob.pe/cl-ti-itmrconsruc/FrameCriterioBusquedaWeb.jsp" target="_blank" rel="noopener" style="margin:0 0 6px">🔎 Abrir Consulta RUC de SUNAT</a>
+<a class="lnk" id="sunatBtn" href="https://e-consultaruc.sunat.gob.pe/cl-ti-itmrconsruc/FrameCriterioBusquedaWeb.jsp" target="_blank" rel="noopener" style="margin:0 0 6px">🔎 Abrir Consulta RUC de SUNAT</a>
+<div id="cpmsg" class="cpmsg"></div>
 <div id="qs"></div></div>
 <div id="ver"></div>
 <div class="cons"><b>📄 Constancia de consulta</b>
@@ -206,6 +208,7 @@ const QS=[
 {k:"deu",t:"4. Deuda coactiva",w:"Si tiene deuda en cobranza coactiva, SUNAT puede ordenarnos retener los pagos al proveedor (embargo en forma de retención). Contabilidad debe verificarlo antes de cada pago.",o:[["v","No registra deuda coactiva"],["r","Registra deuda en cobranza coactiva"]],n:"Marcar ingresando a Consulta RUC"},
 {k:"omi",t:"5. Omisiones tributarias",w:"Si no presenta sus declaraciones, es probable que no declare nuestras compras: alto riesgo de que se desconozca el crédito fiscal.",o:[["v","No registra omisiones"],["a","Registra omisiones antiguas (más de 12 meses)"],["r","Registra omisiones recientes (últimos 12 meses)"]],n:"Marcar ingresando a Consulta RUC"}];
 let LR=null;
+document.getElementById("sunatBtn").addEventListener("click",()=>{const m=document.getElementById("cpmsg");if(!LR||!LR.ruc||LR.multi){m.textContent="";return;}const r=LR.ruc;const ok=()=>{m.innerHTML=`✅ RUC <b>${r}</b> copiado. En Consulta RUC, pégalo en el campo del RUC (mantén presionado y elige <b>Pegar</b>, o Ctrl+V).`;};const no=()=>{m.innerHTML=`Copia este RUC en Consulta RUC: <b>${r}</b>`;};try{if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(r).then(ok,no);else{const t=document.createElement("textarea");t.value=r;document.body.appendChild(t);t.select();document.execCommand("copy")?ok():no();t.remove();}}catch(e){no();}});
 const qsEl=document.getElementById("qs"),verEl=document.getElementById("ver");
 qsEl.innerHTML=QS.map(x=>`<div class="q"><div class="t"><span>${x.t}</span><span class="hn">${x.n}</span></div><div class="w">${x.w}</div>${x.o.map((o,i)=>`<label class="op"><span class="lv lv-${o[0]}">${{v:"BUENO",a:"MEDIO",r:"MALO"}[o[0]]}</span><input type="radio" name="${x.k}" value="${o[0]}"><span>${o[1]}</span></label>`).join("")}</div>`).join("");
 let VER=null;
