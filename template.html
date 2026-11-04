@@ -123,7 +123,7 @@ let mode="ruc";
 const q=document.getElementById("q"),out=document.getElementById("out"),hint=document.getElementById("hint");
 document.getElementById("foot").textContent="Base: "+D.length.toLocaleString("es-PE")+" SSCO · Última publicación incluida: "+LAST+" · Revisado en SUNAT: "+CHK+" · Fuente: SUNAT";
 function setMode(m){mode=m;document.getElementById("tRuc").classList.toggle("on",m==="ruc");document.getElementById("tNom").classList.toggle("on",m==="nom");
-q.value="";out.innerHTML="";
+q.value="";out.innerHTML="";LR=null;if(typeof evaluar==="function")evaluar();
 if(m==="ruc"){q.inputMode="numeric";q.maxLength=11;q.placeholder="Ingresa el RUC (11 dígitos)";hint.textContent="Escribe el RUC del proveedor tal como figura en la cotización o factura.";}
 else{q.inputMode="text";q.removeAttribute("maxlength");q.placeholder="Ej.: INVERSIONES PEREZ";hint.textContent="Escribe al menos 3 letras. Busca por todas las palabras, sin importar tildes ni el orden.";}
 q.focus();}
@@ -187,10 +187,11 @@ if(f===undefined){out.innerHTML=warn("No se pudo obtener la razón social (revis
 LR={ruc,nom:f.nom,est:f.est,cond:f.cond,act:f.actd||"",trab:trabTxt(f.trab),ssco:!!sres};evaluar();out.innerHTML=ficha(f)+(sres||ok("El RUC "+ruc,true));});
 }else{
 const t=norm(v);
-if(!/[A-ZÑ]/.test(t)||t.replace(/[^A-ZÑ]/g,"").length<3){out.innerHTML=badNom("Escribe al menos 3 letras. Una razón social no puede ser solo números o símbolos.");return;}
+if(!/[A-ZÑ]/.test(t)||t.replace(/[^A-ZÑ]/g,"").length<3){LR=null;evaluar();out.innerHTML=badNom("Escribe al menos 3 letras. Una razón social no puede ser solo números o símbolos.");return;}
 const w=t.split(" ");
 const hits=[];IDX.forEach((s,i)=>{if(w.every(x=>s.includes(x)))hits.push(D[i]);});
-if(!hits.length){out.innerHTML=noNom(esc(v));return;}
+if(!hits.length){LR=null;evaluar();out.innerHTML=noNom(esc(v));return;}
+LR=hits.length===1?{ruc:hits[0][0],nom:hits[0][1],est:"-",cond:"-",act:"",ssco:true}:{ruc:"",nom:"",est:"-",cond:"-",act:"",ssco:true,multi:hits.length};evaluar();
 const show=hits.slice(0,50);
 out.innerHTML=red(hits.length)+(hits.length>50?warn("Se muestran 50 de "+hits.length+" resultados. Escribe más palabras o busca por RUC."):"")+show.map(card).join("");
 }}
@@ -223,9 +224,9 @@ qsEl.addEventListener("change",evaluar);
 document.getElementById("rst").onclick=()=>{qsEl.querySelectorAll("input").forEach(i=>i.checked=false);evaluar();};
 const usr=document.getElementById("usr"),pdfB=document.getElementById("pdf"),cMsg=document.getElementById("consMsg");
 try{usr.value=localStorage.getItem("ssco_usr")||"";}catch(e){}
-function updCons(){const okR=!!LR,okE=!!VER,okU=usr.value.trim().length>=3;
+function updCons(){const okR=!!LR&&!LR.multi,okE=!!VER,okU=usr.value.trim().length>=3;
 pdfB.disabled=!(okR&&okE&&okU);
-cMsg.textContent=!okR?"Primero consulta un RUC válido arriba.":!okE?"Completa los "+QS.length+" puntos de la evaluación.":!okU?"Escribe tu nombre para generar la constancia.":"Lista para descargar: RUC "+LR.ruc+" · "+VER+".";}
+cMsg.textContent=LR&&LR.multi?"Hay "+LR.multi+" coincidencias SSCO: busca por RUC el proveedor exacto para descargar su constancia.":!okR?"Primero consulta un RUC válido arriba.":!okE?"Completa los "+QS.length+" puntos de la evaluación.":!okU?"Escribe tu nombre para generar la constancia.":"Lista para descargar: RUC "+LR.ruc+" · "+VER+".";}
 usr.addEventListener("input",()=>{try{localStorage.setItem("ssco_usr",usr.value.trim());}catch(e){}updCons();});
 function wrapT(c,txt,w){const ws=String(txt).split(" ");const L=[];let l="";for(const x of ws){const tt=l?l+" "+x:x;if(c.measureText(tt).width>w&&l){L.push(l);l=x;}else l=tt;}if(l)L.push(l);return L;}
 function makePDF(jpg){const b64=jpg.split(",")[1],bin=atob(b64),img=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)img[i]=bin.charCodeAt(i);
