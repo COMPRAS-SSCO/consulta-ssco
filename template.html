@@ -218,10 +218,10 @@ VER=null;if(!n){verEl.innerHTML="";updCons();return;}
 const bl=LR&&(LR.ssco||(LR.est!=="ACTIVO"&&LR.est!=="-")||(LR.cond!=="HABIDO"&&LR.cond!=="-"));
 const r=v.includes("r")||bl,a=v.includes("a");let h;
 if(n===QS.length)VER=r?"NO COMPRAR":a?"CONSULTAR CON CONTABILIDAD":"SE PUEDE COMPRAR";
-if(r)h=`<div class="ver r"><b class="big">⛔ NO COMPRAR</b>${bl?"El proveedor figura como SSCO o no está ACTIVO y HABIDO. ":""}El proveedor presenta señales de alto riesgo. No emitir la orden de compra sin la aprobación de Contabilidad.</div>`;
+if(r)h=`<div class="ver r"><b class="big">⛔ NO COMPRAR</b>${bl?"El proveedor figura como SSCO o no está ACTIVO y HABIDO. ":""}El proveedor presenta señales de alto riesgo. No Realizar la Compra.</div>`;
 else if(a)h=`<div class="ver a"><b class="big">⚠️ CONSULTAR CON CONTABILIDAD</b>Hay observaciones. Antes de comprar, envía a Contabilidad el RUC y lo que encontraste para que evalúe y pida sustento adicional al proveedor.</div>`;
 else if(n<QS.length)h=`<div class="ver n"><b class="big">Faltan ${QS.length-n} punto(s) por revisar</b>Completa la evaluación para obtener el resultado.</div>`;
-else h=`<div class="ver g"><b class="big">✅ SE PUEDE COMPRAR</b>No se encontraron observaciones. Confirma también que no figure como SSCO y que esté ACTIVO y HABIDO, y guarda el sustento de la operación.</div>`;
+else h=`<div class="ver g"><b class="big">✅ SE PUEDE COMPRAR</b>No se encontraron observaciones. Confirma también que no figure como SSCO y que esté ACTIVO y HABIDO, y guarda el sustento de la operación ingresando tu nombre y apellido.</div>`;
 verEl.innerHTML=h;updCons();}
 qsEl.addEventListener("change",evaluar);
 document.getElementById("rst").onclick=()=>{qsEl.querySelectorAll("input").forEach(i=>i.checked=false);evaluar();};
