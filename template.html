@@ -160,7 +160,7 @@ return `<div class="ficha"><div class="lbl">Razón social según SUNAT</div><div
 ${f.actd?`<div class="act"><span>Actividad económica</span>${f.actd.split(" · ").map((x,i)=>`<div><b>${i?"Secundaria":"Principal"}:</b> ${esc(x)}</div>`).join("")}</div>`:""}
 <div class="act"><span>Cantidad de trabajadores</span>${esc(trabTxt(f.trab))}${TPER&&f.trab&&!/^no disponible$/i.test(f.trab)?`<div style="font-size:12px;color:var(--mut);margin-top:3px">La Ficha RUC puede mostrar un periodo más reciente.</div>`:""}</div>
 <div class="sm">¿Es el proveedor correcto? Si el nombre no coincide, <b>revisa el RUC digitado</b>.</div></div>
-${eo&&co?"":`<div class="alert r"><h2>⛔ No proceder con la compra</h2><p>El contribuyente figura con estado <b>${esc(f.est)}</b> y condición <b>${esc(f.cond)}</b>. Solo se compra a proveedores <b>ACTIVOS</b> y <b>HABIDOS</b>. Comunicar a Contabilidad.</p></div>`}`;}
+${eo&&co?"":`<div class="alert r"><h2>⛔ No proceder con la compra</h2><p>El contribuyente figura con estado <b>${esc(f.est)}</b> y condición <b>${esc(f.cond)}</b>. Solo se compra a proveedores <b>ACTIVOS</b> y <b>HABIDOS</b>.</p></div>`}`;}
 function noReg(ruc){return `<div class="alert e"><h2>❌ RUC NO REGISTRADO</h2><p>El Sistema RUC <b>NO REGISTRA</b> el número de RUC <b>${ruc}</b> consultado (padrón reducido SUNAT al ${PFECHA}).</p><p style="margin-top:6px">Probablemente se digitó mal. Revisa el RUC en la cotización o factura.</p>${lnk}</div>`;}
 let SEQ=0;
 const SUNAT_URL="https://e-consultaruc.sunat.gob.pe/cl-ti-itmrconsruc/FrameCriterioBusquedaWeb.jsp";
