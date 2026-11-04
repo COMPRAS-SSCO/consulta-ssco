@@ -89,12 +89,12 @@ mark{background:#ffe58f;color:inherit;padding:0}
 <div id="out"></div>
 <div class="box ev" style="margin-top:16px" id="ev">
 <h3>🧾 ¿Podemos comprarle a este proveedor?</h3>
-<div id="evq"><p class="intro">Busca el RUC en Consulta RUC de SUNAT, revisa estos 3 puntos y marca lo que encuentres. La página te dirá si se puede comprar.</p>
+<div id="evq"><p class="intro">Busca el RUC en Consulta RUC de SUNAT, revisa estos 4 puntos y marca lo que encuentres. La página te dirá si se puede comprar.</p>
 <a class="lnk" href="https://e-consultaruc.sunat.gob.pe/cl-ti-itmrconsruc/FrameCriterioBusquedaWeb.jsp" target="_blank" rel="noopener" style="margin:0 0 6px">🔎 Abrir Consulta RUC de SUNAT</a>
 <div id="qs"></div></div>
 <div id="ver"></div>
 <div class="cons"><b>📄 Constancia de consulta</b>
-<div class="intro" id="consMsg">Primero consulta un RUC válido arriba y completa los 3 puntos.</div>
+<div class="intro" id="consMsg">Primero consulta un RUC válido arriba y completa los 4 puntos.</div>
 <input id="usr" autocomplete="name" placeholder="Tu nombre y apellido (quién consulta)">
 <button class="btnpdf" type="button" id="pdf" disabled>Descargar constancia (PDF)</button></div>
 <button class="reset" type="button" id="rst">↺ Limpiar evaluación</button>
@@ -134,7 +134,7 @@ const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",
 function card(r){return `<div class="item"><div class="ruc">RUC ${esc(r[0])}</div><div class="n">${esc(r[1])}</div><dl>
 <dt>Resolución</dt><dd>${esc(r[3])}</dd><dt>Emisión</dt><dd>${esc(r[4])}</dd><dt>Quedó firme</dt><dd>${esc(r[5])}</dd>
 <dt>Publicado</dt><dd>${esc(r[8])}</dd><dt>Domicilio</dt><dd>${esc(r[2])}</dd><dt>Rep. legal</dt><dd>${esc(r[7])}${r[6]&&r[6]!==r[0]?" ("+esc(r[6])+")":""}</dd></dl></div>`;}
-function red(n){return `<div class="alert r"><h2>⛔ ALERTA: proveedor SSCO</h2><p>${n>1?n+" coincidencias figuran":"Figura"} en la relación de Sujetos sin Capacidad Operativa de SUNAT. <b>No proceder con la compra</b> y comunicar a Contabilidad.</p></div>`;}
+function red(n){return `<div class="alert r"><h2>⛔ ALERTA: proveedor SSCO</h2><p>${n>1?n+" coincidencias figuran":"Figura"} en la relación de Sujetos sin Capacidad Operativa de SUNAT. <b>No proceder con la compra</b>.</p></div>`;}
 function ok(t,v){return `<div class="alert g"><h2>✅ No figura como SSCO</h2><p>${t} no aparece en la relación publicada hasta el ${LAST}.${v?"":" Igual verifica en Consulta RUC de SUNAT que esté <b>ACTIVO</b> y <b>HABIDO</b>."}</p>${v?"":lnk}</div>`;}
 const PC=new Map();
 async function padron(ruc){
@@ -196,8 +196,9 @@ out.innerHTML=red(hits.length)+(hits.length>50?warn("Se muestran 50 de "+hits.le
 }}
 const QS=[
 {k:"his",t:"1. Información histórica",w:"Cambios frecuentes de razón social o domicilio, o un RUC recién creado o reactivado, son señales de alerta frecuentes en proveedores fantasma.",o:[["v","Sin cambios recientes / RUC con varios años de antigüedad"],["a","Cambios recientes de razón social o domicilio, o RUC con menos de 1 año"],["a","Fue dado de baja o suspendido y luego reactivado"]]},
-{k:"deu",t:"2. Deuda coactiva",w:"Si tiene deuda en cobranza coactiva, SUNAT puede ordenarnos retener los pagos al proveedor (embargo en forma de retención). Contabilidad debe verificarlo antes de cada pago.",o:[["v","No registra deuda coactiva"],["a","Registra deuda en cobranza coactiva"]]},
-{k:"omi",t:"3. Omisiones tributarias",w:"Si no presenta sus declaraciones, es probable que no declare nuestras compras: alto riesgo de que se desconozca el crédito fiscal.",o:[["v","No registra omisiones"],["a","Registra omisiones antiguas (más de 12 meses)"],["r","Registra omisiones recientes (últimos 12 meses)"]]}];
+{k:"tra",t:"2. Cantidad de trabajadores y/o prestadores de servicio",w:"Debe ser coherente con lo que el proveedor dice que hace. No tener personal para el servicio o volumen ofrecido es justamente el criterio de un SSCO.",o:[["v","Tiene trabajadores acordes al servicio o volumen ofrecido"],["a","Tiene pocos trabajadores para el volumen o servicio ofrecido"],["r","No registra trabajadores (0) y el servicio requiere personal"]]},
+{k:"deu",t:"3. Deuda coactiva",w:"Si tiene deuda en cobranza coactiva, SUNAT puede ordenarnos retener los pagos al proveedor (embargo en forma de retención). Contabilidad debe verificarlo antes de cada pago.",o:[["v","No registra deuda coactiva"],["a","Registra deuda en cobranza coactiva"]]},
+{k:"omi",t:"4. Omisiones tributarias",w:"Si no presenta sus declaraciones, es probable que no declare nuestras compras: alto riesgo de que se desconozca el crédito fiscal.",o:[["v","No registra omisiones"],["a","Registra omisiones antiguas (más de 12 meses)"],["r","Registra omisiones recientes (últimos 12 meses)"]]}];
 let LR=null;
 const qsEl=document.getElementById("qs"),verEl=document.getElementById("ver");
 qsEl.innerHTML=QS.map(x=>`<div class="q"><div class="t">${x.t}</div><div class="w">${x.w}</div>${x.o.map((o,i)=>`<label class="op"><input type="radio" name="${x.k}" value="${o[0]}">${o[1]}</label>`).join("")}</div>`).join("");
@@ -207,7 +208,7 @@ if(LR.est!=="ACTIVO"&&LR.est!=="-")m.push("está en estado "+LR.est);if(LR.cond!
 const evq=document.getElementById("evq"),rstB=document.getElementById("rst");
 function evaluar(){const mt=motivos();
 if(mt.length){evq.style.display="none";rstB.style.display="none";VER="NO COMPRAR";
-verEl.innerHTML=`<div class="ver r"><b class="big">⛔ NO COMPRAR</b>El proveedor ${mt.join(", ")}. No se requiere evaluación: no emitir la orden de compra y comunicar a Contabilidad.</div>`;updCons();return;}
+verEl.innerHTML=`<div class="ver r"><b class="big">⛔ NO COMPRAR</b>El proveedor ${mt.join(", ")}. No se requiere evaluación: no emitir la orden de compra.</div>`;updCons();return;}
 evq.style.display="";rstB.style.display="";const v=QS.map(x=>(document.querySelector(`input[name=${x.k}]:checked`)||{}).value);const n=v.filter(Boolean).length;
 VER=null;if(!n){verEl.innerHTML="";updCons();return;}
 const bl=LR&&(LR.ssco||(LR.est!=="ACTIVO"&&LR.est!=="-")||(LR.cond!=="HABIDO"&&LR.cond!=="-"));
