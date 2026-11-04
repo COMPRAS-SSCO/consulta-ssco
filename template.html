@@ -58,6 +58,7 @@ mark{background:#ffe58f;color:inherit;padding:0}
 .op{display:flex;gap:8px;align-items:flex-start;font-size:14px;padding:7px 9px;border:1.5px solid var(--line);border-radius:10px;margin-top:6px;cursor:pointer}
 .op input{margin-top:3px;flex:none;width:18px;height:18px}
 .op:has(input:checked){border-color:var(--pri);background:#eef4fb}
+.mo{margin:4px 0 0;padding-left:18px}.mo li{margin:2px 0}
 .lv{flex:none;width:58px;text-align:center;font-size:11px;font-weight:800;letter-spacing:.3px;padding:3px 0;border-radius:6px;margin-top:1px;color:#fff}
 .lv-v{background:#1e7d32}.lv-a{background:#f2b705;color:#3d2e00}.lv-r{background:#c62828}
 .op:has(input[value=v]:checked){border-color:#1e7d32;background:#e8f5e9}.op:has(input[value=a]:checked){border-color:#d9a400;background:#fff8e1}.op:has(input[value=r]:checked){border-color:#c62828;background:#fdecea}
@@ -218,9 +219,9 @@ evq.style.display="";rstB.style.display="";const v=QS.map(x=>(document.querySele
 VER=null;if(!n){verEl.innerHTML="";updCons();return;}
 const bl=LR&&(LR.ssco||(LR.est!=="ACTIVO"&&LR.est!=="-")||(LR.cond!=="HABIDO"&&LR.cond!=="-"));
 const r=v.includes("r")||bl,a=v.includes("a");let h;
-if(n===QS.length)VER=r?"NO COMPRAR":a?"CONSULTAR CON CONTABILIDAD":"SE PUEDE COMPRAR";
+if(n===QS.length)VER=r?"NO COMPRAR":a?"RECOMENDABLE NO COMPRAR":"SE PUEDE COMPRAR";
 if(r)h=`<div class="ver r"><b class="big">⛔ NO COMPRAR</b>${bl?"El proveedor figura como SSCO o no está ACTIVO y HABIDO. ":""}El proveedor presenta señales de alto riesgo. No Realizar la Compra.</div>`;
-else if(a)h=`<div class="ver a"><b class="big">⚠️ CONSULTAR CON CONTABILIDAD</b>Hay observaciones. Antes de comprar, envía a Contabilidad el RUC y lo que encontraste para que evalúe y pida sustento adicional al proveedor.</div>`;
+else if(a){const mo=QS.filter((x,i)=>v[i]==="a").map(x=>`<li><b>${x.t.replace(/^\d+\. /,"")}:</b> ${x.o.find(o=>o[0]==="a")[1]}</li>`).join("");h=`<div class="ver a"><b class="big">⚠️ RECOMENDABLE NO COMPRAR</b>Motivo:<ul class="mo">${mo}</ul></div>`;}
 else if(n<QS.length)h=`<div class="ver n"><b class="big">Faltan ${QS.length-n} punto(s) por revisar</b>Completa la evaluación para obtener el resultado.</div>`;
 else h=`<div class="ver g"><b class="big">✅ SE PUEDE COMPRAR</b>No se encontraron observaciones. Confirma también que no figure como SSCO y que esté ACTIVO y HABIDO, y guarda el sustento de la operación ingresando tu nombre y apellido.</div>`;
 verEl.innerHTML=h;updCons();}
