@@ -69,6 +69,7 @@ mark{background:#ffe58f;color:inherit;padding:0}
 .cons input{width:100%;font-size:16px;padding:11px;margin:6px 0 8px}
 .btnpdf{width:100%;padding:13px;border:0;border-radius:10px;background:var(--grn);color:#fff;font-size:16px;font-weight:700}
 .btnpdf:disabled{background:#c5ccd3}
+.btnpdf.mail{margin-top:8px;background:#fff;color:var(--pri);border:1.5px solid var(--pri)}.btnpdf.mail:disabled{background:#fff;color:#a9b2bc;border-color:#c5ccd3}
 .reset{background:none;border:0;color:var(--pri);font-weight:600;font-size:13.5px;padding:8px 0;text-decoration:underline}
 .lnk{display:block;text-align:center;margin-top:10px;padding:11px;border-radius:10px;background:#fff;border:1.5px solid var(--pri);color:var(--pri);font-weight:600;font-size:14.5px;text-decoration:none}
 </style>
@@ -102,7 +103,8 @@ mark{background:#ffe58f;color:inherit;padding:0}
 <div class="cons"><b>📄 Constancia de consulta</b>
 <div class="intro" id="consMsg">Primero consulta un RUC válido arriba y completa los 4 puntos.</div>
 <input id="usr" autocomplete="name" placeholder="Tu nombre y apellido (quién consulta)">
-<button class="btnpdf" type="button" id="pdf" disabled>Descargar constancia (PDF)</button></div>
+<button class="btnpdf" type="button" id="pdf" disabled>Descargar constancia (PDF)</button>
+<button class="btnpdf mail" type="button" id="mail" disabled>✉️ Enviar constancia por correo</button></div>
 <button class="reset" type="button" id="rst">↺ Limpiar evaluación</button>
 <p class="intro" style="margin-top:4px">Guía interna de control. Ante cualquier resultado en ámbar o rojo, la decisión final la toma <b>Contabilidad</b>.</p>
 </div>
@@ -230,10 +232,10 @@ else h=`<div class="ver g"><b class="big">✅ SE PUEDE COMPRAR</b>No se encontra
 verEl.innerHTML=h;updCons();}
 qsEl.addEventListener("change",evaluar);
 document.getElementById("rst").onclick=()=>{qsEl.querySelectorAll("input").forEach(i=>i.checked=false);evaluar();};
-const usr=document.getElementById("usr"),pdfB=document.getElementById("pdf"),cMsg=document.getElementById("consMsg");
+const usr=document.getElementById("usr"),pdfB=document.getElementById("pdf"),mailB=document.getElementById("mail"),cMsg=document.getElementById("consMsg");
 try{usr.value=localStorage.getItem("ssco_usr")||"";}catch(e){}
 function updCons(){const okR=!!LR&&!LR.multi,okE=!!VER,okU=usr.value.trim().length>=3;
-pdfB.disabled=!(okR&&okE&&okU);
+pdfB.disabled=mailB.disabled=!(okR&&okE&&okU);
 cMsg.textContent=LR&&LR.multi?"Hay "+LR.multi+" coincidencias SSCO: busca por RUC el proveedor exacto para descargar su constancia.":!okR?"Primero consulta un RUC válido arriba.":!okE?"Completa los "+QS.length+" puntos de la evaluación.":!okU?"Escribe tu nombre para generar la constancia.":"Lista para descargar: RUC "+LR.ruc+" · "+VER+".";}
 usr.addEventListener("input",()=>{try{localStorage.setItem("ssco_usr",usr.value.trim());}catch(e){}updCons();});
 function wrapT(c,txt,w){const ws=String(txt).split(" ");const L=[];let l="";for(const x of ws){const tt=l?l+" "+x:x;if(c.measureText(tt).width>w&&l){L.push(l);l=x;}else l=tt;}if(l)L.push(l);return L;}
@@ -249,7 +251,9 @@ xref.push(off);add(`5 0 obj<</Length ${cs.length}>>stream\n${cs}\nendstream endo
 const xo=off;add(`xref\n0 6\n0000000000 65535 f \n${xref.map(o=>String(o).padStart(10,"0")+" 00000 n \n").join("")}trailer<</Size 6/Root 1 0 R>>\nstartxref\n${xo}\n%%EOF`);
 return new Blob(parts,{type:"application/pdf"});}
 const CW=1240,CH=1754;
-pdfB.onclick=async()=>{if(pdfB.disabled)return;pdfB.disabled=true;const old=pdfB.textContent;pdfB.textContent="Generando…";
+function dlFile(blob,name){const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},4000);}
+const MOVIL=/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);
+async function genPDF(mode){const B=mode==="mail"?mailB:pdfB;if(B.disabled)return;pdfB.disabled=mailB.disabled=true;const old=B.textContent;B.textContent="Generando…";
 try{const now=new Date(),fh=now.toLocaleString("es-PE",{timeZone:"America/Lima",day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:false});
 const MT=motivos();const ans=MT.length?[]:QS.map(x=>{const i=[...document.querySelectorAll(`input[name=${x.k}]`)].findIndex(e=>e.checked);return [x.t.replace(/^\d+\. /,""),x.o[i][1],x.o[i][0]];});
 const body=[LR.ruc,LR.nom,LR.est,LR.cond,LR.ssco,ans.map(a=>a[1]).join("|"),VER,usr.value.trim(),now.toISOString()].join("#");
@@ -278,9 +282,16 @@ c.fillStyle="#5f6b7a";c.font=`23px ${F}`;wrapT(c,"Constancia generada por la her
 y=Math.max(y+60,CH-150);c.fillStyle="#1b2430";c.fillRect(M,y,520,2);c.font=`25px ${F}`;c.fillText("Firma de quien consulta: "+usr.value.trim(),M,y+38);
 const blob=makePDF(cv.toDataURL("image/jpeg",0.92));
 const st=now.toLocaleString("sv-SE",{timeZone:"America/Lima"}).replace(/[-:]/g,"").replace(" ","_").slice(0,13);
-const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="Constancia_RUC_"+LR.ruc+"_"+st+".pdf";document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},4000);
-pdfB.textContent="✔ Constancia descargada";setTimeout(()=>{pdfB.textContent=old;updCons();},2500);
-}catch(e){console.error(e);pdfB.textContent=old;updCons();cMsg.textContent="No se pudo generar el PDF. Inténtalo otra vez.";}};
+const fname="Constancia_RUC_"+LR.ruc+"_"+st+".pdf";
+if(mode==="mail"){const subj="Constancia de consulta de proveedor - RUC "+LR.ruc+" - "+VER;
+const txt="Adjunto la constancia de consulta del proveedor.\n\nRUC: "+LR.ruc+"\nRazón social: "+LR.nom+"\nResultado: "+VER+"\nFecha y hora: "+fh+" (hora Lima)\nConsultado por: "+usr.value.trim()+"\nCódigo de verificación: "+code;
+let shared=false;const file=new File([blob],fname,{type:"application/pdf"});
+if(MOVIL&&navigator.canShare&&navigator.canShare({files:[file]})){try{await navigator.share({files:[file],title:subj,text:txt});shared=true;B.textContent="✔ Listo";}catch(e){if(e&&e.name==="AbortError")shared=true;}}
+if(!shared){dlFile(blob,fname);location.href="mailto:?subject="+encodeURIComponent(subj)+"&body="+encodeURIComponent(txt+"\n\n(Adjuntar el archivo "+fname+", que se acaba de descargar.)");B.textContent="✔ PDF descargado: adjúntalo al correo";cMsg.innerHTML="Se abrió tu correo y se descargó <b>"+fname+"</b>. Adjunta ese archivo al correo antes de enviarlo.";}
+}else{dlFile(blob,fname);B.textContent="✔ Constancia descargada";}
+setTimeout(()=>{B.textContent=old;const k=cMsg.innerHTML;updCons();if(mode==="mail"&&k.startsWith("Se abrió"))cMsg.innerHTML=k;},3500);
+}catch(e){console.error(e);B.textContent=old;updCons();cMsg.textContent="No se pudo generar el PDF. Inténtalo otra vez.";}}
+pdfB.onclick=()=>genPDF("dl");mailB.onclick=()=>genPDF("mail");
 updCons();
 document.getElementById("f").addEventListener("submit",e=>{e.preventDefault();search();q.blur();});
 q.focus();
